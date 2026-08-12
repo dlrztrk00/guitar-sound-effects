@@ -8,8 +8,6 @@ Turns out you can. This runs in the browser: you plug a guitar into an interface
 open the page, and it distorts and EQs your sound in real time while a spectrum
 moves along with what you play.
 
-It's a small thing, but it's mine, and it actually works with my own guitar.
-
 <!-- I'll drop a screen recording here once I deploy it:
      ![distbox](docs/demo.gif) -->
 
