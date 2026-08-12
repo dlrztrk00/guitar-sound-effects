@@ -1,85 +1,81 @@
-# distbox 🎸
+# distbox
 
-A real-time **guitar distortion + EQ pedal** that runs entirely in the browser —
-no plugins, no pedal, just code. Built with the **Web Audio API**, React and
-TypeScript.
+A guitar pedal I built in the browser instead of buying one.
 
-Plug a guitar into an audio interface, open the page, and shape your tone with a
-tanh waveshaper and a 3-band EQ while a live spectrum reacts to what you play.
+I saw a video where someone made distortion just by writing code — no pedal, no
+amp, just math on the audio signal — and wanted to know if I could do the same.
+Turns out you can. This runs in the browser: you plug a guitar into an interface,
+open the page, and it distorts and EQs your sound in real time while a spectrum
+moves along with what you play.
 
-> Built to answer a simple question: *can I make distortion with math instead of
-> a stompbox?* Turns out you can — it's a nonlinear transfer function applied to
-> the samples.
+It's a small thing, but it's mine, and it actually works with my own guitar.
 
-<!-- Add a screenshot or GIF here once deployed:
+<!-- I'll drop a screen recording here once I deploy it:
      ![distbox](docs/demo.gif) -->
 
----
+## What it does
 
-## Features
+- **Drive** — the distortion. Turn it up and the sound clips harder.
+- **Low / Mid / High** — a basic EQ to shape the tone.
+- **On / Bypass** footswitch — flip between the effect and your clean sound.
+- **Live spectrum** — the bars react to whatever you're playing.
+- **CH1 / CH2** — my interface (a Behringer UMC202HD) has two inputs, so this
+  lets me pick the one the guitar is actually plugged into.
 
-- 🎛 **DRIVE** — soft-clipping distortion from a `tanh` waveshaper curve
-- 🎚 **3-band EQ** — low / mid / high, built on `BiquadFilterNode`
-- 🦶 **True-bypass footswitch** — A/B the wet and dry signal with no click
-- 📊 **Live spectrum** — real-time FFT drawn on a canvas as you play
-- 🔀 **CH1 / CH2 input selector** — pick which input of a 2-in interface (e.g.
-  Behringer UMC202HD) your guitar is plugged into
+## How it actually works
 
-## How it works
-
-The whole effect is a chain of Web Audio nodes:
+The signal runs through a chain of Web Audio nodes:
 
 ```
-guitar (getUserMedia)
-  → ChannelSplitter        pick Input 1 or Input 2
-  → WaveShaperNode         tanh distortion curve, driven by DRIVE
-  → BiquadFilter ×3        low-shelf / peaking / high-shelf EQ
-  → dry/wet GainNodes      the bypass switch
-  → AnalyserNode           taps the signal for the spectrum
+guitar (mic input)
+  → split the two interface inputs, keep the one I picked
+  → distortion  (a tanh curve — this is the part from that video)
+  → EQ          (three filters: low, mid, high)
+  → dry/wet mix (that's the bypass switch)
+  → analyser    (feeds the spectrum)
   → speakers
 ```
 
-**Distortion** is just a lookup curve: each incoming sample `x` (−1…1) is mapped
-through `tanh(k·x)`, where `k` grows with the DRIVE knob. `tanh` squashes large
-values toward ±1, which is exactly what a rounded, warm clip sounds like — the
-higher the drive, the harder it clips.
+The distortion is the fun part. Every sample of the sound (a number between −1
+and 1) gets pushed through `tanh`. `tanh` flattens big values toward ±1, so the
+peaks of the wave get squashed — and squashed peaks *is* distortion. The Drive
+knob just controls how hard I push into it. No pedal doing it, just that.
 
-**EQ** is three biquad filters in series. **Bypass** crossfades between a dry
-path and the processed path. The guitar input requests raw audio
-(`echoCancellation`, `noiseSuppression`, `autoGainControl` all **off**) so the
-browser doesn't "clean up" the signal and kill the sustain.
+The EQ is three filters stacked. Bypass is a crossfade between the clean signal
+and the processed one. I also had to tell the browser to stop "cleaning up" the
+mic input (it does echo cancellation and noise reduction by default), otherwise
+it kills the sustain and the tone goes thin.
 
-## Run it locally
+## Running it
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open the printed URL, click **start**, and allow microphone access.
+Open the URL it prints, hit start, allow the mic.
 
-**Setup tips**
-- Select your audio interface as the system input (macOS: System Settings → Sound → Input).
-- Use **headphones** to avoid a feedback loop between speakers and input.
-- Turn up the interface's **GAIN** knob so the signal is strong enough to hear the distortion.
+A few things I learned the hard way:
+- Pick your interface as the input in your system sound settings.
+- Wear headphones or the speakers feed back into the input.
+- Turn the interface's gain up enough, or the signal's too weak to distort.
 
-> ⚠️ Browser audio has a little input latency — this is a fun, visual, coded
-> effects unit, not a replacement for a DAW when actually recording.
+One honest caveat: there's a bit of latency going through the browser, so this
+is more a "look what I made" project than something I'd track a real cover
+through. For recording I still use GarageBand.
 
-## Tech
+## Built with
 
-- **Web Audio API** — `WaveShaperNode`, `BiquadFilterNode`, `AnalyserNode`, `ChannelSplitterNode`
-- **React 19 + TypeScript**
-- **Vite**
+Web Audio API, React, TypeScript, Vite.
 
-## Roadmap
+## Still want to add
 
-- [ ] Real rotary knobs (drag to turn) instead of sliders
-- [ ] Delay / echo effect (`DelayNode` + feedback)
-- [ ] Save & recall presets — one tone per artist
-- [ ] Deploy to a public URL
-- [ ] Prototype the distortion curve in Python (numpy) first
+- Actual knobs you turn, instead of sliders
+- A delay/echo
+- Saving presets so I can keep a tone per artist
+- Getting it deployed somewhere
+- Working out the distortion curve in Python first, for my DSP course
 
 ---
 
-Made by [Dilara Öztürk](https://github.com/dlrztrk00) — where software meets music.
+by [Dilara](https://github.com/dlrztrk00)
