@@ -8,7 +8,10 @@ Turns out you can. This runs in the browser: you plug a guitar into an interface
 open the page, and it distorts and EQs your sound in real time while a spectrum
 moves along with what you play.
 
-<!-- I'll drop a screen recording here once I deploy it:
+**Try it: https://dlrztrk00.github.io/guitar-sound-effects/** — plug in a guitar
+and allow the mic when it asks.
+
+<!-- I'll drop a screen recording here:
      ![distbox](docs/demo.gif) -->
 
 ## What it does
@@ -71,7 +74,6 @@ Web Audio API, React, TypeScript, Vite.
 - Actual knobs you turn, instead of sliders
 - A delay/echo
 - Saving presets so I can keep a tone per artist
-- Getting it deployed somewhere
 - Working out the distortion curve in Python first, for my DSP course
 
 ---
