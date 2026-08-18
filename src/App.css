@@ -213,3 +213,108 @@ footer {
   font-size: 0.82rem;
   line-height: 1.6;
 }
+
+/* ── input device + level meter ─────────────────────────────── */
+.io {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.device {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.device select {
+  flex: 1;
+  min-width: 0;
+  background: var(--ink-2);
+  color: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.device select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+.meter-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  width: 1.6rem;
+}
+.meter-track {
+  flex: 1;
+  height: 8px;
+  background: #060806;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.meter-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--green);
+  transition: width 0.05s linear;
+}
+.meter-clip {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: #e0684c;
+  opacity: 0.25;
+}
+
+/* the delay row has three knobs, not four */
+.delay-row {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* ── record button ──────────────────────────────────────────── */
+.transport-row {
+  display: flex;
+  gap: 0.75rem;
+}
+.transport-row .ghost {
+  flex: 1;
+}
+.rec {
+  flex: 1;
+  padding: 0.9rem;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  background: transparent;
+  color: #e0684c;
+  border: 1px solid #e0684c;
+  transition: all 0.15s;
+}
+.rec.on {
+  background: #e0684c;
+  color: var(--ink);
+  border-color: #e0684c;
+  font-weight: 700;
+  animation: recpulse 1.1s ease-in-out infinite;
+}
+@keyframes recpulse {
+  50% {
+    opacity: 0.65;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec.on {
+    animation: none;
+  }
+}

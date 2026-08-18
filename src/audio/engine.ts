@@ -1,28 +1,28 @@
 // The whole pedal, in Web Audio nodes.
 //
 // signal path:
-//   guitar (mic/interface)
-//     → inputGain
-//     ├─ dry path ─────────────→ dryGain ┐
-//     └─ WaveShaper (distortion)          │
-//          → EQ low → mid → high → wetGain ┤
-//                                          ├→ master → analyser → speakers
+//   guitar (interface) → splitter (pick CH) → inputGain ─┬─ dry ─────────────┐
+//                                                        │                   │
+//                                    inputAnalyser (tap) ┘                   │
+//                                                                            │
+//   inputGain → shaper (distortion) → low → mid → high ─┬─────────→ wetGain ─┤
+//                                                        └→ delay ↺ → wetGain │
+//                                                                            │
+//   wet + dry → master → limiter → analyser → speakers                       │
+//                                └→ recorder tap (download)  ─────────────────┘
 //
-// bypass = turn wetGain off / dryGain on. that's it.
+// bypass = wetGain off / dryGain on.
 
 export type EqBand = "low" | "mid" | "high";
 
 // A soft-clipping distortion curve built from tanh.
-// `drive` 0..1 → how hard we push the signal into the curve.
-// tanh squashes big values toward ±1 → rounded, warm clipping (not harsh).
 function makeDistortionCurve(drive: number): Float32Array<ArrayBuffer> {
   const n = 2048;
-  // build on an explicit ArrayBuffer so the type matches WaveShaperNode.curve
   const curve = new Float32Array(new ArrayBuffer(n * Float32Array.BYTES_PER_ELEMENT));
   const k = 1 + drive * 40; // 1 (clean) → 41 (very driven)
   for (let i = 0; i < n; i++) {
-    const x = (i * 2) / n - 1; // input sample, -1..1
-    curve[i] = Math.tanh(k * x) / Math.tanh(k); // normalize so peak stays ~1
+    const x = (i * 2) / n - 1;
+    curve[i] = Math.tanh(k * x) / Math.tanh(k); // normalize peak to ~1
   }
   return curve;
 }
@@ -31,16 +31,28 @@ export class PedalEngine {
   ctx: AudioContext;
   private stream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
+  private splitter?: ChannelSplitterNode;
 
   private inputGain: GainNode;
-  private splitter?: ChannelSplitterNode;
-  private inputChannel: 0 | 1 = 0; // 0 = Behringer Input 1, 1 = Input 2
+  private inputChannel: 0 | 1 = 0;
+  private deviceId?: string;
+
   private shaper: WaveShaperNode;
   private eq: Record<EqBand, BiquadFilterNode>;
+
+  // delay send
+  private delay: DelayNode;
+  private delayFeedback: GainNode;
+  private delayMix: GainNode;
+
   private wetGain: GainNode;
   private dryGain: GainNode;
   private master: GainNode;
-  analyser: AnalyserNode;
+  private limiter: DynamicsCompressorNode;
+  private recDest: MediaStreamAudioDestinationNode;
+
+  analyser: AnalyserNode; // output spectrum
+  inputAnalyser: AnalyserNode; // input level meter
 
   private drive = 0.5;
   bypassed = false;
@@ -49,12 +61,17 @@ export class PedalEngine {
     this.ctx = new AudioContext({ latencyHint: "interactive" });
 
     this.inputGain = this.ctx.createGain();
-    this.inputGain.gain.value = 1;
+
+    // input level tap (doesn't alter the signal)
+    this.inputAnalyser = this.ctx.createAnalyser();
+    this.inputAnalyser.fftSize = 256;
+    this.inputAnalyser.smoothingTimeConstant = 0.3;
+    this.inputGain.connect(this.inputAnalyser);
 
     // --- distortion ---
     this.shaper = this.ctx.createWaveShaper();
     this.shaper.curve = makeDistortionCurve(this.drive);
-    this.shaper.oversample = "4x"; // cleaner clipping, less aliasing
+    this.shaper.oversample = "4x";
 
     // --- 3-band EQ ---
     const low = this.ctx.createBiquadFilter();
@@ -69,76 +86,114 @@ export class PedalEngine {
     high.frequency.value = 3500;
     this.eq = { low, mid, high };
 
-    // --- mix / bypass ---
+    // --- delay send (echo) ---
+    this.delay = this.ctx.createDelay(1.0);
+    this.delay.delayTime.value = 0.3;
+    this.delayFeedback = this.ctx.createGain();
+    this.delayFeedback.gain.value = 0.35;
+    this.delayMix = this.ctx.createGain();
+    this.delayMix.gain.value = 0; // off by default
+
+    // --- mix / bypass / output ---
     this.wetGain = this.ctx.createGain();
     this.dryGain = this.ctx.createGain();
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.9;
 
-    // --- the visual tap ---
+    // a limiter on the output so stacked drive + EQ can't nasty-clip
+    this.limiter = this.ctx.createDynamicsCompressor();
+    this.limiter.threshold.value = -6;
+    this.limiter.knee.value = 0;
+    this.limiter.ratio.value = 20;
+    this.limiter.attack.value = 0.003;
+    this.limiter.release.value = 0.25;
+
+    // output spectrum tap
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 2048;
     this.analyser.smoothingTimeConstant = 0.8;
 
-    // wire the effects chain: shaper → low → mid → high → wetGain
+    // recording tap
+    this.recDest = this.ctx.createMediaStreamDestination();
+
+    // permanent wiring (input source gets attached later, in openStream)
+    this.inputGain.connect(this.shaper);
+    this.inputGain.connect(this.dryGain);
+
     this.shaper.connect(low);
     low.connect(mid);
     mid.connect(high);
     high.connect(this.wetGain);
 
-    // both paths meet at master, then analyser, then speakers
+    // delay send off the end of the EQ, with a feedback loop
+    high.connect(this.delay);
+    this.delay.connect(this.delayFeedback);
+    this.delayFeedback.connect(this.delay);
+    this.delay.connect(this.delayMix);
+    this.delayMix.connect(this.wetGain);
+
     this.wetGain.connect(this.master);
     this.dryGain.connect(this.master);
-    this.master.connect(this.analyser);
+
+    this.master.connect(this.limiter);
+    this.limiter.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
+    this.limiter.connect(this.recDest);
 
     this.setBypass(false);
   }
 
-  /** Ask for the guitar input and start passing sound through. Needs a user click. */
-  async start(): Promise<void> {
-    if (this.source) {
-      // already started; just make sure the context is running
-      if (this.ctx.state === "suspended") await this.ctx.resume();
-      return;
-    }
+  /** (Re)open the mic/interface stream and wire it into the graph. */
+  private async openStream(): Promise<void> {
+    // tear down any previous input
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.source?.disconnect();
+    this.splitter?.disconnect();
+
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        // CRITICAL for guitar: turn off the phone/voice processing,
-        // or the browser "cleans" your signal and kills sustain/tone.
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
-        // ask for BOTH channels so we can pick Input 1 vs Input 2
         channelCount: 2,
+        ...(this.deviceId ? { deviceId: { exact: this.deviceId } } : {}),
       },
       video: false,
     });
     this.source = this.ctx.createMediaStreamSource(this.stream);
-    // split the stereo interface into its two mono inputs...
     this.splitter = this.ctx.createChannelSplitter(2);
     this.source.connect(this.splitter);
-    // ...and feed only the selected one forward
     this.splitter.connect(this.inputGain, this.inputChannel, 0);
-    // feed input into BOTH the dry path and the distortion path
-    this.inputGain.connect(this.shaper);
-    this.inputGain.connect(this.dryGain);
+  }
+
+  async start(): Promise<void> {
+    if (!this.source) await this.openStream();
     if (this.ctx.state === "suspended") await this.ctx.resume();
   }
 
-  /** Stop the audio and release the mic. */
   async stop(): Promise<void> {
     this.stream?.getTracks().forEach((t) => t.stop());
     this.source?.disconnect();
     this.splitter?.disconnect();
-    this.inputGain.disconnect();
     this.stream = undefined;
     this.source = undefined;
     this.splitter = undefined;
     await this.ctx.suspend();
   }
 
-  /** Pick which Behringer input to listen to: 0 = Input 1, 1 = Input 2. */
+  /** List the available audio input devices (labels appear after permission). */
+  async listInputs(): Promise<MediaDeviceInfo[]> {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    return all.filter((d) => d.kind === "audioinput");
+  }
+
+  /** Switch to a specific input device and reconnect live. */
+  async setDevice(id: string): Promise<void> {
+    this.deviceId = id || undefined;
+    if (this.source) await this.openStream();
+  }
+
+  /** Pick which interface input to listen to: 0 = Input 1, 1 = Input 2. */
   setInput(ch: 0 | 1): void {
     this.inputChannel = ch;
     if (this.splitter) {
@@ -161,12 +216,29 @@ export class PedalEngine {
     this.eq[band].gain.value = db;
   }
 
+  /** Delay wet amount 0..1. */
+  setDelayMix(v: number): void {
+    this.delayMix.gain.value = Math.max(0, Math.min(1, v));
+  }
+  /** Delay time in seconds, 0..1. */
+  setDelayTime(s: number): void {
+    this.delay.delayTime.value = Math.max(0, Math.min(1, s));
+  }
+  /** Delay feedback 0..0.9 (higher = more repeats). */
+  setDelayFeedback(v: number): void {
+    this.delayFeedback.gain.value = Math.max(0, Math.min(0.9, v));
+  }
+
   setBypass(on: boolean): void {
     this.bypassed = on;
     const t = this.ctx.currentTime;
-    // short ramp avoids a click when switching
     this.wetGain.gain.setTargetAtTime(on ? 0 : 1, t, 0.01);
     this.dryGain.gain.setTargetAtTime(on ? 1 : 0, t, 0.01);
+  }
+
+  /** The processed output as a stream, for MediaRecorder. */
+  get recordStream(): MediaStream {
+    return this.recDest.stream;
   }
 
   get running(): boolean {
