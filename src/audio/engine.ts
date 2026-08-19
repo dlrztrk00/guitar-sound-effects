@@ -49,7 +49,10 @@ export class PedalEngine {
   private dryGain: GainNode;
   private master: GainNode;
   private limiter: DynamicsCompressorNode;
-  private recDest: MediaStreamAudioDestinationNode;
+  private recNode: ScriptProcessorNode;
+  private recSilent: GainNode;
+  private capturing = false;
+  private recChunks: Float32Array[] = [];
 
   analyser: AnalyserNode; // output spectrum
   inputAnalyser: AnalyserNode; // input level meter
@@ -113,8 +116,14 @@ export class PedalEngine {
     this.analyser.fftSize = 2048;
     this.analyser.smoothingTimeConstant = 0.8;
 
-    // recording tap
-    this.recDest = this.ctx.createMediaStreamDestination();
+    // recording tap: pull raw PCM off the output so we can encode MP3
+    this.recNode = this.ctx.createScriptProcessor(4096, 1, 1);
+    this.recSilent = this.ctx.createGain();
+    this.recSilent.gain.value = 0;
+    this.recNode.onaudioprocess = (e) => {
+      if (!this.capturing) return;
+      this.recChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    };
 
     // permanent wiring (input source gets attached later, in openStream)
     this.inputGain.connect(this.shaper);
@@ -138,7 +147,10 @@ export class PedalEngine {
     this.master.connect(this.limiter);
     this.limiter.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
-    this.limiter.connect(this.recDest);
+    // recorder tap runs into a silent gain so it processes without doubling output
+    this.limiter.connect(this.recNode);
+    this.recNode.connect(this.recSilent);
+    this.recSilent.connect(this.ctx.destination);
 
     this.setBypass(false);
   }
@@ -236,9 +248,18 @@ export class PedalEngine {
     this.dryGain.gain.setTargetAtTime(on ? 1 : 0, t, 0.01);
   }
 
-  /** The processed output as a stream, for MediaRecorder. */
-  get recordStream(): MediaStream {
-    return this.recDest.stream;
+  /** Start collecting raw PCM from the output (for MP3 encoding). */
+  startCapture(): void {
+    this.recChunks = [];
+    this.capturing = true;
+  }
+
+  /** Stop and return the captured PCM plus its sample rate. */
+  stopCapture(): { chunks: Float32Array[]; sampleRate: number } {
+    this.capturing = false;
+    const chunks = this.recChunks;
+    this.recChunks = [];
+    return { chunks, sampleRate: this.ctx.sampleRate };
   }
 
   get running(): boolean {

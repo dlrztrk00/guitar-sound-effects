@@ -43,8 +43,8 @@ export const PRESETS: Preset[] = [
   {
     id: "top",
     name: "Twenty One Pilots",
-    tag: "trench · driven & atmospheric, big delay",
-    tone: { drive: 0.62, low: 3, mid: -2, high: 2, delayMix: 0.42, delayTime: 0.45, delayFb: 0.5 },
+    tag: "trench · heavy dark fuzz, bass-driven (Jumpsuit-ish)",
+    tone: { drive: 0.86, low: 7, mid: -2, high: -3, delayMix: 0.07, delayTime: 0.3, delayFb: 0.2 },
     skin: {
       chassis: "linear-gradient(#2a1210, #150706)",
       // red/black flame fallback until the photo is dropped in
@@ -57,8 +57,8 @@ export const PRESETS: Preset[] = [
   {
     id: "strokes",
     name: "The Strokes",
-    tag: "garage crunch · mid-forward, lo-fi",
-    tone: { drive: 0.45, low: -2, mid: 4, high: 1, delayMix: 0.08, delayTime: 0.25, delayFb: 0.2 },
+    tag: "garage crunch · bright, thin telecaster bite (Reptilia-ish)",
+    tone: { drive: 0.5, low: -6, mid: 2, high: 6, delayMix: 0.05, delayTime: 0.22, delayFb: 0.15 },
     skin: {
       chassis: "linear-gradient(#33281c, #1c150d)",
       faceplate:

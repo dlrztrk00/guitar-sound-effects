@@ -4,6 +4,7 @@ import { Spectrum } from "./Spectrum";
 import { Meter } from "./Meter";
 import { Knob } from "./Knob";
 import { PRESETS, DEFAULT_PRESET, type Tone } from "./presets";
+import { Mp3Encoder } from "@breezystack/lamejs";
 import "./App.css";
 
 function applyTone(e: PedalEngine, t: Tone) {
@@ -30,8 +31,7 @@ export default function App() {
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const recRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const preset = PRESETS.find((p) => p.id === presetId)!;
   const base = import.meta.env.BASE_URL;
@@ -57,7 +57,7 @@ export default function App() {
   }
 
   async function handleStop() {
-    if (recording) stopRecording();
+    if (recording) finishRecording();
     await engineRef.current?.stop();
     setRunning(false);
   }
@@ -98,31 +98,57 @@ export default function App() {
   }
 
   function toggleRecord() {
-    if (recording) return stopRecording();
+    if (recording) {
+      finishRecording();
+      return;
+    }
     const e = engineRef.current;
     if (!e || !running) return;
-    const rec = new MediaRecorder(e.recordStream);
-    chunksRef.current = [];
-    rec.ondataavailable = (ev) => ev.data.size && chunksRef.current.push(ev.data);
-    rec.onstop = () => {
-      const blob = new Blob(chunksRef.current, {
-        type: rec.mimeType || "audio/webm",
+    e.startCapture();
+    setRecording(true);
+  }
+
+  function finishRecording() {
+    const e = engineRef.current;
+    if (!e) return;
+    const { chunks, sampleRate } = e.stopCapture();
+    setRecording(false);
+    if (!chunks.length) return;
+    setSaving(true);
+    // let the button repaint before the (synchronous) MP3 encode
+    setTimeout(() => {
+      // flatten Float32 chunks → one Int16 PCM buffer
+      const total = chunks.reduce((n, c) => n + c.length, 0);
+      const pcm = new Int16Array(total);
+      let off = 0;
+      for (const c of chunks) {
+        for (let i = 0; i < c.length; i++) {
+          const s = Math.max(-1, Math.min(1, c[i]));
+          pcm[off++] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+      }
+      // encode to MP3 (mono, 128 kbps) in 1152-sample frames
+      const enc = new Mp3Encoder(1, sampleRate, 128);
+      const parts: Uint8Array[] = [];
+      const frame = 1152;
+      for (let i = 0; i < pcm.length; i += frame) {
+        const buf = enc.encodeBuffer(pcm.subarray(i, i + frame));
+        if (buf.length) parts.push(new Uint8Array(buf));
+      }
+      const end = enc.flush();
+      if (end.length) parts.push(new Uint8Array(end));
+
+      const blob = new Blob(parts as unknown as BlobPart[], {
+        type: "audio/mpeg",
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `soundbox-${new Date().toISOString().slice(0, 19)}.webm`;
+      a.download = `soundbox-${new Date().toISOString().slice(0, 19)}.mp3`;
       a.click();
       URL.revokeObjectURL(url);
-    };
-    rec.start();
-    recRef.current = rec;
-    setRecording(true);
-  }
-  function stopRecording() {
-    recRef.current?.stop();
-    recRef.current = null;
-    setRecording(false);
+      setSaving(false);
+    }, 30);
   }
 
   const on = running && !bypassed;
@@ -240,8 +266,12 @@ export default function App() {
           ) : (
             <>
               <button className="ghost" onClick={handleStop}>■ power off</button>
-              <button className={`rec ${recording ? "on" : ""}`} onClick={toggleRecord}>
-                {recording ? "■ stop & save" : "● record"}
+              <button
+                className={`rec ${recording ? "on" : ""}`}
+                onClick={toggleRecord}
+                disabled={saving}
+              >
+                {saving ? "saving mp3…" : recording ? "■ stop & save mp3" : "● record"}
               </button>
             </>
           )}
