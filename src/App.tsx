@@ -3,7 +3,7 @@ import { PedalEngine } from "./audio/engine";
 import { Spectrum } from "./Spectrum";
 import { Meter } from "./Meter";
 import { Knob } from "./Knob";
-import { PRESETS, DEFAULT_PRESET, type Tone } from "./presets";
+import { ARTISTS, DEFAULT_ARTIST, DEFAULT_SONG, type Tone } from "./presets";
 import { Mp3Encoder } from "@breezystack/lamejs";
 import "./App.css";
 
@@ -21,23 +21,24 @@ export default function App() {
   const engineRef = useRef<PedalEngine | null>(null);
   const [running, setRunning] = useState(false);
   const [bypassed, setBypassed] = useState(false);
-  const [presetId, setPresetId] = useState(DEFAULT_PRESET);
+  const [artistId, setArtistId] = useState(DEFAULT_ARTIST);
+  const [songId, setSongId] = useState(DEFAULT_SONG);
   const [tone, setTone] = useState<Tone>(
-    () => PRESETS.find((p) => p.id === DEFAULT_PRESET)!.tone
+    () => ARTISTS.find((a) => a.id === DEFAULT_ARTIST)!.songs[0].tone
   );
   const [input, setInput] = useState<0 | 1>(0);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
   const [recording, setRecording] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [saving, setSaving] = useState(false);
-
-  const preset = PRESETS.find((p) => p.id === presetId)!;
+  const artist = ARTISTS.find((a) => a.id === artistId)!;
+  const song = artist.songs.find((s) => s.id === songId) ?? artist.songs[0];
   const base = import.meta.env.BASE_URL;
-  const faceBg = preset.skin.image
-    ? `linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.62)), url("${base}${preset.skin.image}") center/cover, ${preset.skin.faceplate}`
-    : preset.skin.faceplate;
+  const faceBg = artist.skin.image
+    ? `linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.62)), url("${base}${artist.skin.image}") center/cover, ${artist.skin.faceplate}`
+    : artist.skin.faceplate;
 
   async function handleStart() {
     setError(null);
@@ -62,11 +63,20 @@ export default function App() {
     setRunning(false);
   }
 
-  function selectPreset(id: string) {
-    const p = PRESETS.find((x) => x.id === id)!;
-    setPresetId(id);
-    setTone(p.tone);
-    if (engineRef.current) applyTone(engineRef.current, p.tone);
+  function selectArtist(id: string) {
+    const a = ARTISTS.find((x) => x.id === id)!;
+    const s = a.songs[0];
+    setArtistId(id);
+    setSongId(s.id);
+    setTone(s.tone);
+    if (engineRef.current) applyTone(engineRef.current, s.tone);
+  }
+
+  function selectSong(id: string) {
+    const s = artist.songs.find((x) => x.id === id)!;
+    setSongId(id);
+    setTone(s.tone);
+    if (engineRef.current) applyTone(engineRef.current, s.tone);
   }
 
   function setToneVal(k: keyof Tone, v: number) {
@@ -115,9 +125,7 @@ export default function App() {
     setRecording(false);
     if (!chunks.length) return;
     setSaving(true);
-    // let the button repaint before the (synchronous) MP3 encode
     setTimeout(() => {
-      // flatten Float32 chunks → one Int16 PCM buffer
       const total = chunks.reduce((n, c) => n + c.length, 0);
       const pcm = new Int16Array(total);
       let off = 0;
@@ -127,7 +135,6 @@ export default function App() {
           pcm[off++] = s < 0 ? s * 0x8000 : s * 0x7fff;
         }
       }
-      // encode to MP3 (mono, 128 kbps) in 1152-sample frames
       const enc = new Mp3Encoder(1, sampleRate, 128);
       const parts: Uint8Array[] = [];
       const frame = 1152;
@@ -137,10 +144,7 @@ export default function App() {
       }
       const end = enc.flush();
       if (end.length) parts.push(new Uint8Array(end));
-
-      const blob = new Blob(parts as unknown as BlobPart[], {
-        type: "audio/mpeg",
-      });
+      const blob = new Blob(parts as unknown as BlobPart[], { type: "audio/mpeg" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -162,27 +166,43 @@ export default function App() {
         <p className="sub">a guitar pedal, coded — Web Audio</p>
       </header>
 
-      {/* preset selector */}
+      {/* artist selector */}
       <div className="presets">
-        {PRESETS.map((p) => (
+        {ARTISTS.map((a) => (
           <button
-            key={p.id}
-            className={`preset ${p.id === presetId ? "sel" : ""}`}
-            style={{ ["--accent" as string]: p.skin.accent }}
-            onClick={() => selectPreset(p.id)}
+            key={a.id}
+            className={`preset ${a.id === artistId ? "sel" : ""}`}
+            style={{ ["--accent" as string]: a.skin.accent }}
+            onClick={() => selectArtist(a.id)}
           >
-            {p.name}
+            {a.name}
           </button>
         ))}
       </div>
+
+      {/* song selector (only when the artist has more than one) */}
+      {artist.songs.length > 1 && (
+        <div className="songs">
+          {artist.songs.map((s) => (
+            <button
+              key={s.id}
+              className={`song ${s.id === songId ? "sel" : ""}`}
+              style={{ ["--accent" as string]: artist.skin.accent }}
+              onClick={() => selectSong(s.id)}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* the pedal */}
       <div
         className={`pedal ${on ? "on" : "off"}`}
         style={{
-          background: preset.skin.chassis,
-          ["--accent" as string]: preset.skin.accent,
-          ["--ink" as string]: preset.skin.ink,
+          background: artist.skin.chassis,
+          ["--accent" as string]: artist.skin.accent,
+          ["--ink" as string]: artist.skin.ink,
         }}
       >
         <span className="screw tl" />
@@ -192,51 +212,48 @@ export default function App() {
 
         <div className="brand">SOUND//BOX</div>
 
-        {/* faceplate — art + preset name + a little screen */}
         <div className="faceplate" style={{ background: faceBg }}>
           <div className="face-top">
-            <span className="preset-name">{preset.name}</span>
+            <span className="preset-name">{artist.name}</span>
             <span className={`dot ${on ? "lit" : ""}`} />
           </div>
-          <p className="preset-tag">{preset.tag}</p>
+          <p className="preset-tag">♪ {song.name}</p>
           <div className="screen">
             <Spectrum analyser={running ? engineRef.current!.analyser : null} />
           </div>
         </div>
 
-        {/* knob deck */}
         <div className="deck">
           <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
-            display={`${Math.round(tone.drive * 100)}%`} accent={preset.skin.accent}
+            display={`${Math.round(tone.drive * 100)}%`} accent={artist.skin.accent}
             onChange={(v) => setToneVal("drive", v)} />
           <Knob label="LOW" value={tone.low} min={-18} max={18} step={1}
-            display={`${tone.low > 0 ? "+" : ""}${tone.low}`} accent={preset.skin.accent}
+            display={`${tone.low > 0 ? "+" : ""}${tone.low}`} accent={artist.skin.accent}
             onChange={(v) => setToneVal("low", v)} />
           <Knob label="MID" value={tone.mid} min={-18} max={18} step={1}
-            display={`${tone.mid > 0 ? "+" : ""}${tone.mid}`} accent={preset.skin.accent}
+            display={`${tone.mid > 0 ? "+" : ""}${tone.mid}`} accent={artist.skin.accent}
             onChange={(v) => setToneVal("mid", v)} />
           <Knob label="HIGH" value={tone.high} min={-18} max={18} step={1}
-            display={`${tone.high > 0 ? "+" : ""}${tone.high}`} accent={preset.skin.accent}
+            display={`${tone.high > 0 ? "+" : ""}${tone.high}`} accent={artist.skin.accent}
             onChange={(v) => setToneVal("high", v)} />
           <Knob label="DELAY" value={tone.delayMix} min={0} max={1} step={0.01}
-            display={`${Math.round(tone.delayMix * 100)}%`} accent={preset.skin.accent}
+            display={`${Math.round(tone.delayMix * 100)}%`} accent={artist.skin.accent}
             onChange={(v) => setToneVal("delayMix", v)} />
           <Knob label="TIME" value={tone.delayTime} min={0.02} max={1} step={0.01}
-            display={`${Math.round(tone.delayTime * 1000)}ms`} accent={preset.skin.accent}
+            display={`${Math.round(tone.delayTime * 1000)}ms`} accent={artist.skin.accent}
             onChange={(v) => setToneVal("delayTime", v)} />
           <Knob label="F.BACK" value={tone.delayFb} min={0} max={0.9} step={0.01}
-            display={`${Math.round(tone.delayFb * 100)}%`} accent={preset.skin.accent}
+            display={`${Math.round(tone.delayFb * 100)}%`} accent={artist.skin.accent}
             onChange={(v) => setToneVal("delayFb", v)} />
         </div>
 
-        {/* footswitch */}
         <button className={`stomp ${on ? "lit" : ""}`} onClick={toggleBypass} disabled={!running}>
           <span className="stomp-ring" />
           {bypassed ? "BYPASS" : "ON"}
         </button>
       </div>
 
-      {/* rack — the utility gear around the pedal */}
+      {/* rack — utility gear around the pedal */}
       <div className="rack">
         <div className="rack-row">
           <label className="device">
@@ -266,11 +283,7 @@ export default function App() {
           ) : (
             <>
               <button className="ghost" onClick={handleStop}>■ power off</button>
-              <button
-                className={`rec ${recording ? "on" : ""}`}
-                onClick={toggleRecord}
-                disabled={saving}
-              >
+              <button className={`rec ${recording ? "on" : ""}`} onClick={toggleRecord} disabled={saving}>
                 {saving ? "saving mp3…" : recording ? "■ stop & save mp3" : "● record"}
               </button>
             </>
@@ -282,8 +295,8 @@ export default function App() {
 
       <footer>
         <p>
-          pick a preset — the pedal re-dials and re-skins. drag the knobs to tweak,
-          watch the IN meter, hit record to save a riff.
+          pick an artist, then a song — the pedal re-dials and re-skins. drag the
+          knobs to tweak, watch the IN meter, hit record to save an mp3.
         </p>
       </footer>
     </div>

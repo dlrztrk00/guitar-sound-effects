@@ -67,6 +67,34 @@ header .sub {
   box-shadow: 0 0 14px -4px var(--accent);
 }
 
+/* song selector — smaller, secondary row under the artist */
+.songs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.4rem 0 1.25rem;
+  padding-left: 0.15rem;
+}
+.song {
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.song:hover {
+  color: var(--paper);
+}
+.song.sel {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+}
+
 /* ── the pedal (a metal enclosure) ───────────────────────────── */
 .pedal {
   position: relative;
