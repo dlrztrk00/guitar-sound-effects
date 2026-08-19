@@ -109,3 +109,32 @@ export const ARTISTS: Artist[] = [
 
 export const DEFAULT_ARTIST = "clean";
 export const DEFAULT_SONG = "clean";
+
+// ── user-saved presets (localStorage) ───────────────────────────
+export type Custom = { id: string; name: string; tone: Tone; skin: Skin };
+
+const LS_KEY = "soundbox.customs.v1";
+
+export function loadCustoms(): Custom[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? (JSON.parse(raw) as Custom[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustoms(list: Custom[]): void {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
+  } catch {
+    /* storage full or blocked — ignore */
+  }
+}
+
+export const SAVED_SKIN: Skin = {
+  chassis: "linear-gradient(#26262c, #141419)",
+  faceplate: "radial-gradient(130% 110% at 50% -10%, #2b2b33, #121216)",
+  accent: "#d9c37a",
+  ink: "#efeae0",
+};

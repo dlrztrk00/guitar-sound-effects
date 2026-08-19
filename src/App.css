@@ -95,6 +95,55 @@ header .sub {
   background: color-mix(in oklab, var(--accent) 10%, transparent);
 }
 
+/* ── save-your-tone row ──────────────────────────────────────── */
+.save-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.name-in {
+  flex: 1;
+  min-width: 0;
+  background: var(--ink-2);
+  color: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+}
+.name-in::placeholder {
+  color: var(--muted);
+}
+.name-in:focus {
+  border-color: color-mix(in oklab, var(--green) 55%, var(--line));
+}
+.save-btn {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--green);
+  background: color-mix(in oklab, var(--green) 14%, transparent);
+  color: var(--green);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.del-btn {
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e0684c;
+  background: transparent;
+  color: #e0684c;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 /* ── the pedal (a metal enclosure) ───────────────────────────── */
 .pedal {
   position: relative;

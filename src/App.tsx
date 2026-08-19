@@ -3,7 +3,17 @@ import { PedalEngine } from "./audio/engine";
 import { Spectrum } from "./Spectrum";
 import { Meter } from "./Meter";
 import { Knob } from "./Knob";
-import { ARTISTS, DEFAULT_ARTIST, DEFAULT_SONG, type Tone } from "./presets";
+import {
+  ARTISTS,
+  DEFAULT_ARTIST,
+  DEFAULT_SONG,
+  SAVED_SKIN,
+  loadCustoms,
+  saveCustoms,
+  type Tone,
+  type Artist,
+  type Custom,
+} from "./presets";
 import { Mp3Encoder } from "@breezystack/lamejs";
 import "./App.css";
 
@@ -26,6 +36,8 @@ export default function App() {
   const [tone, setTone] = useState<Tone>(
     () => ARTISTS.find((a) => a.id === DEFAULT_ARTIST)!.songs[0].tone
   );
+  const [customs, setCustoms] = useState<Custom[]>(() => loadCustoms());
+  const [presetName, setPresetName] = useState("");
   const [input, setInput] = useState<0 | 1>(0);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
@@ -33,12 +45,24 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const artist = ARTISTS.find((a) => a.id === artistId)!;
+  // built-in artists + a "Saved" section when the user has presets
+  const savedArtist: Artist = {
+    id: "saved",
+    name: "★ Saved",
+    skin: SAVED_SKIN,
+    songs: customs.map((c) => ({ id: c.id, name: c.name, tone: c.tone })),
+  };
+  const allArtists = customs.length ? [...ARTISTS, savedArtist] : ARTISTS;
+  const artist = allArtists.find((a) => a.id === artistId) ?? ARTISTS[0];
   const song = artist.songs.find((s) => s.id === songId) ?? artist.songs[0];
+  const activeCustom =
+    artistId === "saved" ? customs.find((c) => c.id === songId) : undefined;
+
+  const skin = activeCustom ? activeCustom.skin : artist.skin;
   const base = import.meta.env.BASE_URL;
-  const faceBg = artist.skin.image
-    ? `linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.62)), url("${base}${artist.skin.image}") center/cover, ${artist.skin.faceplate}`
-    : artist.skin.faceplate;
+  const faceBg = skin.image
+    ? `linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.62)), url("${base}${skin.image}") center/cover, ${skin.faceplate}`
+    : skin.faceplate;
 
   async function handleStart() {
     setError(null);
@@ -64,6 +88,15 @@ export default function App() {
   }
 
   function selectArtist(id: string) {
+    if (id === "saved") {
+      if (!customs.length) return;
+      const c = customs[0];
+      setArtistId("saved");
+      setSongId(c.id);
+      setTone(c.tone);
+      if (engineRef.current) applyTone(engineRef.current, c.tone);
+      return;
+    }
     const a = ARTISTS.find((x) => x.id === id)!;
     const s = a.songs[0];
     setArtistId(id);
@@ -73,7 +106,8 @@ export default function App() {
   }
 
   function selectSong(id: string) {
-    const s = artist.songs.find((x) => x.id === id)!;
+    const s = artist.songs.find((x) => x.id === id);
+    if (!s) return;
     setSongId(id);
     setTone(s.tone);
     if (engineRef.current) applyTone(engineRef.current, s.tone);
@@ -88,6 +122,34 @@ export default function App() {
     else if (k === "delayMix") e.setDelayMix(v);
     else if (k === "delayTime") e.setDelayTime(v);
     else if (k === "delayFb") e.setDelayFeedback(v);
+  }
+
+  function saveCurrent() {
+    const name = presetName.trim();
+    if (!name) return;
+    const id =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Date.now());
+    const c: Custom = { id, name, tone, skin };
+    const next = [...customs, c];
+    setCustoms(next);
+    saveCustoms(next);
+    setPresetName("");
+    setArtistId("saved");
+    setSongId(id);
+  }
+
+  function deleteCustom(id: string) {
+    const next = customs.filter((c) => c.id !== id);
+    setCustoms(next);
+    saveCustoms(next);
+    // fall back to Clean
+    setArtistId(DEFAULT_ARTIST);
+    setSongId(DEFAULT_SONG);
+    const clean = ARTISTS.find((a) => a.id === DEFAULT_ARTIST)!.songs[0];
+    setTone(clean.tone);
+    if (engineRef.current) applyTone(engineRef.current, clean.tone);
   }
 
   async function onDevice(id: string) {
@@ -156,6 +218,9 @@ export default function App() {
   }
 
   const on = running && !bypassed;
+  const faceName = activeCustom ? activeCustom.name : artist.name;
+  const faceTag =
+    artistId === "saved" ? "★ your preset" : `♪ ${song.name}`;
 
   return (
     <div className="app">
@@ -168,7 +233,7 @@ export default function App() {
 
       {/* artist selector */}
       <div className="presets">
-        {ARTISTS.map((a) => (
+        {allArtists.map((a) => (
           <button
             key={a.id}
             className={`preset ${a.id === artistId ? "sel" : ""}`}
@@ -180,14 +245,14 @@ export default function App() {
         ))}
       </div>
 
-      {/* song selector (only when the artist has more than one) */}
+      {/* song selector (or saved presets) */}
       {artist.songs.length > 1 && (
         <div className="songs">
           {artist.songs.map((s) => (
             <button
               key={s.id}
               className={`song ${s.id === songId ? "sel" : ""}`}
-              style={{ ["--accent" as string]: artist.skin.accent }}
+              style={{ ["--accent" as string]: skin.accent }}
               onClick={() => selectSong(s.id)}
             >
               {s.name}
@@ -200,9 +265,9 @@ export default function App() {
       <div
         className={`pedal ${on ? "on" : "off"}`}
         style={{
-          background: artist.skin.chassis,
-          ["--accent" as string]: artist.skin.accent,
-          ["--ink" as string]: artist.skin.ink,
+          background: skin.chassis,
+          ["--accent" as string]: skin.accent,
+          ["--ink" as string]: skin.ink,
         }}
       >
         <span className="screw tl" />
@@ -214,10 +279,10 @@ export default function App() {
 
         <div className="faceplate" style={{ background: faceBg }}>
           <div className="face-top">
-            <span className="preset-name">{artist.name}</span>
+            <span className="preset-name">{faceName}</span>
             <span className={`dot ${on ? "lit" : ""}`} />
           </div>
-          <p className="preset-tag">♪ {song.name}</p>
+          <p className="preset-tag">{faceTag}</p>
           <div className="screen">
             <Spectrum analyser={running ? engineRef.current!.analyser : null} />
           </div>
@@ -225,25 +290,25 @@ export default function App() {
 
         <div className="deck">
           <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
-            display={`${Math.round(tone.drive * 100)}%`} accent={artist.skin.accent}
+            display={`${Math.round(tone.drive * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("drive", v)} />
           <Knob label="LOW" value={tone.low} min={-18} max={18} step={1}
-            display={`${tone.low > 0 ? "+" : ""}${tone.low}`} accent={artist.skin.accent}
+            display={`${tone.low > 0 ? "+" : ""}${tone.low}`} accent={skin.accent}
             onChange={(v) => setToneVal("low", v)} />
           <Knob label="MID" value={tone.mid} min={-18} max={18} step={1}
-            display={`${tone.mid > 0 ? "+" : ""}${tone.mid}`} accent={artist.skin.accent}
+            display={`${tone.mid > 0 ? "+" : ""}${tone.mid}`} accent={skin.accent}
             onChange={(v) => setToneVal("mid", v)} />
           <Knob label="HIGH" value={tone.high} min={-18} max={18} step={1}
-            display={`${tone.high > 0 ? "+" : ""}${tone.high}`} accent={artist.skin.accent}
+            display={`${tone.high > 0 ? "+" : ""}${tone.high}`} accent={skin.accent}
             onChange={(v) => setToneVal("high", v)} />
           <Knob label="DELAY" value={tone.delayMix} min={0} max={1} step={0.01}
-            display={`${Math.round(tone.delayMix * 100)}%`} accent={artist.skin.accent}
+            display={`${Math.round(tone.delayMix * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("delayMix", v)} />
           <Knob label="TIME" value={tone.delayTime} min={0.02} max={1} step={0.01}
-            display={`${Math.round(tone.delayTime * 1000)}ms`} accent={artist.skin.accent}
+            display={`${Math.round(tone.delayTime * 1000)}ms`} accent={skin.accent}
             onChange={(v) => setToneVal("delayTime", v)} />
           <Knob label="F.BACK" value={tone.delayFb} min={0} max={0.9} step={0.01}
-            display={`${Math.round(tone.delayFb * 100)}%`} accent={artist.skin.accent}
+            display={`${Math.round(tone.delayFb * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("delayFb", v)} />
         </div>
 
@@ -251,6 +316,26 @@ export default function App() {
           <span className="stomp-ring" />
           {bypassed ? "BYPASS" : "ON"}
         </button>
+      </div>
+
+      {/* save the current tone as a preset */}
+      <div className="save-row">
+        <input
+          className="name-in"
+          value={presetName}
+          onChange={(e) => setPresetName(e.target.value)}
+          placeholder="name this tone…"
+          onKeyDown={(e) => e.key === "Enter" && saveCurrent()}
+        />
+        <button className="save-btn" onClick={saveCurrent} disabled={!presetName.trim()}>
+          save preset
+        </button>
+        {activeCustom && (
+          <button className="del-btn" title="delete this preset"
+            onClick={() => deleteCustom(activeCustom.id)}>
+            ✕
+          </button>
+        )}
       </div>
 
       {/* rack — utility gear around the pedal */}
@@ -295,8 +380,8 @@ export default function App() {
 
       <footer>
         <p>
-          pick an artist, then a song — the pedal re-dials and re-skins. drag the
-          knobs to tweak, watch the IN meter, hit record to save an mp3.
+          pick an artist &amp; song, tweak the knobs, then name and save your own
+          tone — it lands under ★ Saved and sticks around.
         </p>
       </footer>
     </div>
