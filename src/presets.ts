@@ -63,6 +63,7 @@ export const ARTISTS: Artist[] = [
       chassis: "linear-gradient(#33281c, #1c150d)",
       faceplate:
         "repeating-linear-gradient(45deg, #2b2118, #2b2118 9px, #261d14 9px, #261d14 18px)",
+      image: "presets/strokes.jpg",
       accent: "#e8b64c",
       ink: "#f1e6cf",
     },
@@ -79,6 +80,7 @@ export const ARTISTS: Artist[] = [
     skin: {
       chassis: "linear-gradient(#20182a, #100a16)",
       faceplate: "radial-gradient(130% 110% at 50% -10%, #341640, #120a18)",
+      image: "presets/am.jpg",
       accent: "#c65b7e",
       ink: "#ecd8e6",
     },
@@ -95,6 +97,7 @@ export const ARTISTS: Artist[] = [
     skin: {
       chassis: "linear-gradient(#14202a, #0a1016)",
       faceplate: "radial-gradient(130% 110% at 50% -10%, #16323f, #0a1218)",
+      image: "presets/catfish.jpg",
       accent: "#5fb0c9",
       ink: "#d6ecf2",
     },
