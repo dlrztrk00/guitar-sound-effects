@@ -14,20 +14,20 @@
 
 body {
   margin: 0;
-  background: radial-gradient(1000px 600px at 20% -10%, #131a12 0%, transparent 60%),
-    var(--ink);
+  background: radial-gradient(1000px 700px at 50% -10%, #14171c 0%, transparent 60%),
+    #06080a;
   color: var(--paper);
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 .app {
-  max-width: 620px;
+  max-width: 460px;
   margin: 0 auto;
-  padding: 3rem 1.25rem 4rem;
+  padding: 2.5rem 1.25rem 4rem;
 }
 
 header h1 {
-  font-size: 2.6rem;
+  font-size: 2.4rem;
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -39,31 +39,275 @@ header .sub {
   margin: 0.25rem 0 0;
 }
 
-/* the pedal body */
-.pedal {
-  margin-top: 1.75rem;
-  padding: 1.5rem;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: linear-gradient(180deg, var(--ink-2), #0c110b);
-  box-shadow: inset 0 1px 0 #ffffff10, 0 20px 40px -20px #000;
-  transition: opacity 0.2s;
+/* ── preset selector ─────────────────────────────────────────── */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.5rem 0 1.25rem;
 }
-.pedal.off {
-  opacity: 0.72;
+.preset {
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.preset:hover {
+  color: var(--paper);
+}
+.preset.sel {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 14%, var(--ink-2));
+  box-shadow: 0 0 14px -4px var(--accent);
 }
 
-/* input selector */
+/* ── the pedal (a metal enclosure) ───────────────────────────── */
+.pedal {
+  position: relative;
+  color: var(--ink);
+  border-radius: 20px;
+  padding: 1.6rem 1.4rem 1.4rem;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 26px 50px -22px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.5);
+  transition: background 0.35s ease;
+}
+
+.screw {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #6a6e77, #23252b 70%);
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.8), 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+.screw::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-top: 1.5px solid rgba(0, 0, 0, 0.55);
+  transform: rotate(35deg);
+}
+.screw.tl { top: 10px; left: 10px; }
+.screw.tr { top: 10px; right: 10px; }
+.screw.bl { bottom: 10px; left: 10px; }
+.screw.br { bottom: 10px; right: 10px; }
+
+.brand {
+  text-align: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.35em;
+  color: var(--ink);
+  opacity: 0.55;
+  margin-bottom: 1rem;
+}
+
+/* ── faceplate: artwork + a little screen ────────────────────── */
+.faceplate {
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+.face-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.preset-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #2b2b2b;
+  box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.8);
+}
+.dot.lit {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+.preset-tag {
+  margin: 0.15rem 0 0.7rem;
+  font-size: 0.72rem;
+  color: var(--ink);
+  opacity: 0.72;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.screen {
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  background: #05070a;
+  overflow: hidden;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.7);
+}
+.screen .spectrum {
+  height: 84px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* ── knob deck ───────────────────────────────────────────────── */
+.deck {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.9rem 0.5rem;
+  margin: 1.4rem 0 1.3rem;
+}
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+.knob-dial {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #40434b, #16181c 72%);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+.knob-dial:active {
+  cursor: grabbing;
+}
+.knob-dial:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent), 0 3px 7px rgba(0, 0, 0, 0.55);
+}
+.knob-dial svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.knob-track {
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.knob-body {
+  fill: transparent;
+}
+.knob-ind {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px var(--accent));
+}
+.knob-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  opacity: 0.7;
+}
+.knob-val {
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── footswitch ──────────────────────────────────────────────── */
+.stomp {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  background: linear-gradient(#2b2e34, #15171b);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+.stomp:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12);
+}
+.stomp:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.stomp-ring {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #333;
+}
+.stomp.lit .stomp-ring {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+/* ── rack (utility gear around the pedal) ────────────────────── */
+.rack {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.rack-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.rack-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+}
+.device {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+.device select {
+  flex: 1;
+  min-width: 0;
+  background: var(--ink-2);
+  color: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.device select:disabled {
+  opacity: 0.5;
+}
 .inputs {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-.inputs-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.18em;
-  color: var(--muted);
+  gap: 0.5rem;
 }
 .seg {
   display: inline-flex;
@@ -75,10 +319,9 @@ header .sub {
   background: var(--ink-2);
   color: var(--muted);
   border: none;
-  padding: 0.4rem 0.9rem;
+  padding: 0.4rem 0.7rem;
   font-family: inherit;
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
+  font-size: 0.76rem;
   cursor: pointer;
 }
 .seg button + button {
@@ -90,167 +333,14 @@ header .sub {
   font-weight: 700;
 }
 
-.spectrum {
-  width: 100%;
-  height: 140px;
-  display: block;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #060806;
-}
-
-/* knobs / sliders */
-.knobs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
-.control {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-.ctl-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.18em;
-  color: var(--muted);
-}
-.ctl-value {
-  font-size: 0.8rem;
-  color: var(--green);
-  font-variant-numeric: tabular-nums;
-}
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line);
-  outline: none;
-}
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--green);
-  cursor: pointer;
-  box-shadow: 0 0 8px #7fe08a80;
-}
-
-/* footswitch */
-.stomp {
-  width: 100%;
-  padding: 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--ink-2);
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 0.9rem;
-  letter-spacing: 0.2em;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  transition: all 0.15s;
-}
-.stomp:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.stomp.lit {
-  color: var(--green);
-  border-color: #3f6a34;
-}
-.stomp .led {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #2a2a2a;
-}
-.stomp.lit .led {
-  background: var(--green);
-  box-shadow: 0 0 10px var(--green);
-}
-
-/* transport */
-.transport {
-  margin-top: 1.5rem;
-}
-.primary,
-.ghost {
-  width: 100%;
-  padding: 0.9rem;
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 1rem;
-  cursor: pointer;
-}
-.primary {
-  background: var(--green);
-  color: var(--ink);
-  border: none;
-  font-weight: 700;
-}
-.ghost {
-  background: transparent;
-  color: var(--paper);
-  border: 1px solid var(--line);
-}
-
-.error {
-  color: var(--amber);
-  font-size: 0.9rem;
-}
-footer {
-  margin-top: 2rem;
-  color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.6;
-}
-
-/* ── input device + level meter ─────────────────────────────── */
-.io {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-.device {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.device select {
-  flex: 1;
-  min-width: 0;
-  background: var(--ink-2);
-  color: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0.45rem 0.6rem;
-  font-family: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.device select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+/* input meter */
 .meter {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin-bottom: 1rem;
 }
 .meter-label {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   letter-spacing: 0.15em;
   color: var(--muted);
   width: 1.6rem;
@@ -270,32 +360,35 @@ footer {
   transition: width 0.05s linear;
 }
 .meter-clip {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   letter-spacing: 0.12em;
   color: #e0684c;
   opacity: 0.25;
 }
 
-/* the delay row has three knobs, not four */
-.delay-row {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-/* ── record button ──────────────────────────────────────────── */
-.transport-row {
-  display: flex;
-  gap: 0.75rem;
-}
-.transport-row .ghost {
-  flex: 1;
-}
+/* transport buttons */
+.primary,
+.ghost,
 .rec {
   flex: 1;
-  padding: 0.9rem;
+  padding: 0.85rem;
   border-radius: 10px;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
+}
+.primary {
+  background: var(--green);
+  color: var(--ink);
+  border: none;
+  font-weight: 700;
+}
+.ghost {
+  background: transparent;
+  color: var(--paper);
+  border: 1px solid var(--line);
+}
+.rec {
   background: transparent;
   color: #e0684c;
   border: 1px solid #e0684c;
@@ -304,7 +397,6 @@ footer {
 .rec.on {
   background: #e0684c;
   color: var(--ink);
-  border-color: #e0684c;
   font-weight: 700;
   animation: recpulse 1.1s ease-in-out infinite;
 }
@@ -313,6 +405,19 @@ footer {
     opacity: 0.65;
   }
 }
+
+.error {
+  margin-top: 1rem;
+  color: var(--amber);
+  font-size: 0.85rem;
+}
+footer {
+  margin-top: 1.75rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rec.on {
     animation: none;
