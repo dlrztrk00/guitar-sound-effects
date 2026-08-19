@@ -60,8 +60,9 @@ export default function App() {
 
   const skin = activeCustom ? activeCustom.skin : artist.skin;
   const base = import.meta.env.BASE_URL;
+  const imgPos = skin.imagePos ?? "center";
   const faceBg = skin.image
-    ? `linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.62)), url("${base}${skin.image}") center/cover, ${skin.faceplate}`
+    ? `linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.62)), url("${base}${skin.image}") ${imgPos}/cover, ${skin.faceplate}`
     : skin.faceplate;
 
   async function handleStart() {

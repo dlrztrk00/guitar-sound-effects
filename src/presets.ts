@@ -14,6 +14,7 @@ export type Skin = {
   chassis: string; // enclosure background (CSS)
   faceplate: string; // faceplate background (CSS) — the fallback
   image?: string; // optional faceplate art, path under public/ (relative to BASE_URL)
+  imagePos?: string; // background-position for the art (default "center")
   accent: string; // knobs, LED, indicators
   ink: string; // text on the pedal
 };
@@ -98,6 +99,7 @@ export const ARTISTS: Artist[] = [
       chassis: "linear-gradient(#14202a, #0a1016)",
       faceplate: "radial-gradient(130% 110% at 50% -10%, #16323f, #0a1218)",
       image: "presets/catfish.jpg",
+      imagePos: "center 25%",
       accent: "#5fb0c9",
       ink: "#d6ecf2",
     },
