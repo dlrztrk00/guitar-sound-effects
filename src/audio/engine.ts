@@ -248,6 +248,11 @@ export class PedalEngine {
     this.dryGain.gain.setTargetAtTime(on ? 1 : 0, t, 0.01);
   }
 
+  /** Output volume, 0..1.4 (the limiter still catches anything hot). */
+  setLevel(v: number): void {
+    this.master.gain.value = Math.max(0, Math.min(1.4, v));
+  }
+
   /** Start collecting raw PCM from the output (for MP3 encoding). */
   startCapture(): void {
     this.recChunks = [];

@@ -38,6 +38,7 @@ export default function App() {
   );
   const [customs, setCustoms] = useState<Custom[]>(() => loadCustoms());
   const [presetName, setPresetName] = useState("");
+  const [level, setLevel] = useState(0.9);
   const [input, setInput] = useState<0 | 1>(0);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
@@ -71,6 +72,7 @@ export default function App() {
       if (!engineRef.current) engineRef.current = new PedalEngine();
       await engineRef.current.start();
       applyTone(engineRef.current, tone);
+      engineRef.current.setLevel(level);
       engineRef.current.setBypass(bypassed);
       setRunning(true);
       setDevices(await engineRef.current.listInputs());
@@ -151,6 +153,11 @@ export default function App() {
     const clean = ARTISTS.find((a) => a.id === DEFAULT_ARTIST)!.songs[0];
     setTone(clean.tone);
     if (engineRef.current) applyTone(engineRef.current, clean.tone);
+  }
+
+  function onLevel(v: number) {
+    setLevel(v);
+    engineRef.current?.setLevel(v);
   }
 
   async function onDevice(id: string) {
@@ -311,6 +318,9 @@ export default function App() {
           <Knob label="F.BACK" value={tone.delayFb} min={0} max={0.9} step={0.01}
             display={`${Math.round(tone.delayFb * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("delayFb", v)} />
+          <Knob label="LEVEL" value={level} min={0} max={1.2} step={0.01}
+            display={`${Math.round(level * 100)}%`} accent={skin.accent}
+            onChange={onLevel} />
         </div>
 
         <button className={`stomp ${on ? "lit" : ""}`} onClick={toggleBypass} disabled={!running}>
