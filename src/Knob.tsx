@@ -76,21 +76,43 @@ export function Knob({
         style={{ ["--accent" as string]: accent }}
       >
         <svg viewBox="0 0 48 48" aria-hidden>
-          {/* tick track */}
+          {/* tick marks around the dial */}
+          {Array.from({ length: 11 }).map((_, i) => {
+            const a = ((-135 + (i / 10) * 270) * Math.PI) / 180;
+            const s = Math.sin(a);
+            const c = -Math.cos(a);
+            return (
+              <line
+                key={i}
+                className="knob-tick"
+                x1={24 + s * 21}
+                y1={24 + c * 21}
+                x2={24 + s * 23.5}
+                y2={24 + c * 23.5}
+              />
+            );
+          })}
+          {/* value track + filled arc */}
           <path
-            d="M 10 38 A 20 20 0 1 1 38 38"
+            d="M 10.5 37.5 A 19 19 0 1 1 37.5 37.5"
             className="knob-track"
             fill="none"
+            pathLength={100}
           />
-          {/* filled arc up to the current value */}
-          <circle className="knob-body" cx="24" cy="24" r="16" />
-          {/* pointer */}
+          <path
+            d="M 10.5 37.5 A 19 19 0 1 1 37.5 37.5"
+            className="knob-fill"
+            fill="none"
+            pathLength={100}
+            strokeDasharray={`${t * 100} 100`}
+          />
+          {/* pointer notch on the cap */}
           <line
             className="knob-ind"
             x1="24"
             y1="24"
             x2="24"
-            y2="10"
+            y2="12"
             transform={`rotate(${angle} 24 24)`}
           />
         </svg>
