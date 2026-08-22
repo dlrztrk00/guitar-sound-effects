@@ -55,9 +55,10 @@ export class PedalEngine {
   private inputChannel: 0 | 1 = 0;
   private deviceId?: string;
 
-  // noise gate (envelope-following)
-  private gate: ScriptProcessorNode;
+  // noise gate — a native GainNode driven by an analyser (adds no latency)
+  private gateGain: GainNode;
   private gateThreshold = 0; // linear amplitude; 0 = open (off)
+  private gateBuf = new Float32Array(1024);
 
   private shaper: WaveShaperNode;
   private eq: Record<EqBand, BiquadFilterNode>;
@@ -157,29 +158,34 @@ export class PedalEngine {
       this.recChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
     };
 
-    // noise gate: multiplies the signal by an envelope-following gate gain,
-    // opening fast when you play and closing when you stop (kills hum/hiss)
-    this.gate = this.ctx.createScriptProcessor(256, 1, 1);
-    let env = 0;
-    let g = 0;
-    this.gate.onaudioprocess = (e) => {
-      const inp = e.inputBuffer.getChannelData(0);
-      const out = e.outputBuffer.getChannelData(0);
+    // noise gate: a native GainNode opened/closed by watching the input level
+    // (no ScriptProcessor in the signal path, so it adds no latency)
+    this.gateGain = this.ctx.createGain();
+    this.gateGain.gain.value = 1;
+    const gateTick = () => {
+      requestAnimationFrame(gateTick);
+      const now = this.ctx.currentTime;
       const thr = this.gateThreshold;
-      for (let i = 0; i < inp.length; i++) {
-        const a = Math.abs(inp[i]);
-        env = a > env ? a : env * 0.9995; // fast attack, slow release
-        const target = thr <= 0 || env > thr ? 1 : 0;
-        // open quickly, close a bit slower to avoid chatter
-        g += (target - g) * (target > g ? 0.02 : 0.0015);
-        out[i] = inp[i] * g;
+      if (thr <= 0) {
+        this.gateGain.gain.setTargetAtTime(1, now, 0.01);
+        return;
       }
+      this.inputAnalyser.getFloatTimeDomainData(this.gateBuf);
+      let peak = 0;
+      for (let i = 0; i < this.gateBuf.length; i++) {
+        const a = Math.abs(this.gateBuf[i]);
+        if (a > peak) peak = a;
+      }
+      const open = peak > thr;
+      // open fast, close a little slower to avoid chatter
+      this.gateGain.gain.setTargetAtTime(open ? 1 : 0, now, open ? 0.005 : 0.06);
     };
+    gateTick();
 
     // permanent wiring (input source gets attached later, in openStream)
-    this.inputGain.connect(this.gate);
-    this.gate.connect(this.shaper);
-    this.gate.connect(this.dryGain);
+    this.inputGain.connect(this.gateGain);
+    this.gateGain.connect(this.shaper);
+    this.gateGain.connect(this.dryGain);
 
     this.shaper.connect(low);
     low.connect(mid);
@@ -204,10 +210,8 @@ export class PedalEngine {
     this.master.connect(this.limiter);
     this.limiter.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
-    // recorder tap runs into a silent gain so it processes without doubling output
-    this.limiter.connect(this.recNode);
-    this.recNode.connect(this.recSilent);
-    this.recSilent.connect(this.ctx.destination);
+    // the recorder tap is only wired up while recording (see startCapture),
+    // so no ScriptProcessor sits in the graph during normal playing
 
     this.setBypass(false);
   }
@@ -325,11 +329,23 @@ export class PedalEngine {
   startCapture(): void {
     this.recChunks = [];
     this.capturing = true;
+    // wire the recorder into the graph only for the duration of the recording
+    this.limiter.connect(this.recNode);
+    this.recNode.connect(this.recSilent);
+    this.recSilent.connect(this.ctx.destination);
   }
 
   /** Stop and return the captured PCM plus its sample rate. */
   stopCapture(): { chunks: Float32Array[]; sampleRate: number } {
     this.capturing = false;
+    // pull the recorder back out of the graph
+    try {
+      this.limiter.disconnect(this.recNode);
+      this.recNode.disconnect();
+      this.recSilent.disconnect();
+    } catch {
+      /* already disconnected */
+    }
     const chunks = this.recChunks;
     this.recChunks = [];
     return { chunks, sampleRate: this.ctx.sampleRate };
