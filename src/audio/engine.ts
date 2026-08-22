@@ -116,6 +116,10 @@ export class PedalEngine {
   private capturing = false;
   private recChunks: Float32Array[] = [];
 
+  // looper
+  private loopGain: GainNode;
+  private loopSource?: AudioBufferSourceNode;
+
   analyser: AnalyserNode; // output spectrum
   inputAnalyser: AnalyserNode; // input level meter
   tunerAnalyser: AnalyserNode; // larger window for pitch detection
@@ -313,6 +317,11 @@ export class PedalEngine {
     // the recorder tap is only wired up while recording (see startCapture),
     // so no ScriptProcessor sits in the graph during normal playing
 
+    // looper: recorded phrases play back through here into the mix
+    this.loopGain = this.ctx.createGain();
+    this.loopGain.gain.value = 0.85;
+    this.loopGain.connect(this.master);
+
     this.setBypass(false);
   }
 
@@ -476,6 +485,43 @@ export class PedalEngine {
     const chunks = this.recChunks;
     this.recChunks = [];
     return { chunks, sampleRate: this.ctx.sampleRate };
+  }
+
+  /** Start capturing a loop phrase (processed output). */
+  startLoop(): void {
+    this.startCapture();
+  }
+
+  /** Stop capturing and start looping what was captured. */
+  finishLoop(): void {
+    const { chunks, sampleRate } = this.stopCapture();
+    this.stopLoop();
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    if (!total) return;
+    const buf = this.ctx.createBuffer(1, total, sampleRate);
+    const d = buf.getChannelData(0);
+    let off = 0;
+    for (const c of chunks) {
+      d.set(c, off);
+      off += c.length;
+    }
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(this.loopGain);
+    src.start();
+    this.loopSource = src;
+  }
+
+  /** Stop and clear the loop. */
+  stopLoop(): void {
+    try {
+      this.loopSource?.stop();
+    } catch {
+      /* not started */
+    }
+    this.loopSource?.disconnect();
+    this.loopSource = undefined;
   }
 
   get running(): boolean {

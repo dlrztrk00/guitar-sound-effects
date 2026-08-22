@@ -558,8 +558,31 @@ header .sub {
 }
 .rack-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
+}
+.loop {
+  flex: 1;
+  padding: 0.85rem;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  background: transparent;
+  color: #5fb0c9;
+  border: 1px solid #5fb0c9;
+  transition: all 0.15s;
+}
+.loop.on {
+  background: #5fb0c9;
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 0 14px -3px #5fb0c9;
+}
+.loop:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .rack-label {
   font-size: 0.68rem;

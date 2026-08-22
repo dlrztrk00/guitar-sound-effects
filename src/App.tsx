@@ -58,6 +58,7 @@ export default function App() {
   const [deviceId, setDeviceId] = useState("");
   const [recording, setRecording] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loopState, setLoopState] = useState<"idle" | "rec" | "play">("idle");
   const [error, setError] = useState<string | null>(null);
 
   // built-in artists + a "Saved" section when the user has presets
@@ -112,8 +113,25 @@ export default function App() {
 
   async function handleStop() {
     if (recording) finishRecording();
+    engineRef.current?.stopLoop();
+    setLoopState("idle");
     await engineRef.current?.stop();
     setRunning(false);
+  }
+
+  function toggleLoop() {
+    const e = engineRef.current;
+    if (!e || !running) return;
+    if (loopState === "idle") {
+      e.startLoop();
+      setLoopState("rec");
+    } else if (loopState === "rec") {
+      e.finishLoop();
+      setLoopState("play");
+    } else {
+      e.stopLoop();
+      setLoopState("idle");
+    }
   }
 
   function selectArtist(id: string) {
@@ -522,7 +540,22 @@ export default function App() {
           ) : (
             <>
               <button className="ghost" onClick={handleStop}>■ power off</button>
-              <button className={`rec ${recording ? "on" : ""}`} onClick={toggleRecord} disabled={saving}>
+              <button
+                className={`loop ${loopState !== "idle" ? "on" : ""}`}
+                onClick={toggleLoop}
+                disabled={recording || saving}
+              >
+                {loopState === "idle"
+                  ? "● loop"
+                  : loopState === "rec"
+                    ? "■ end loop"
+                    : "✕ clear loop"}
+              </button>
+              <button
+                className={`rec ${recording ? "on" : ""}`}
+                onClick={toggleRecord}
+                disabled={saving || loopState !== "idle"}
+              >
                 {saving ? "saving mp3…" : recording ? "■ stop & save mp3" : "● record"}
               </button>
             </>
