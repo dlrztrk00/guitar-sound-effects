@@ -26,6 +26,7 @@ function applyTone(e: PedalEngine, t: Tone) {
   e.setDelayTime(t.delayTime);
   e.setDelayFeedback(t.delayFb);
   e.setReverbMix(t.reverb ?? 0);
+  e.setGate(t.gate ?? 0);
 }
 
 export default function App() {
@@ -127,6 +128,7 @@ export default function App() {
     else if (k === "delayTime") e.setDelayTime(v);
     else if (k === "delayFb") e.setDelayFeedback(v);
     else if (k === "reverb") e.setReverbMix(v);
+    else if (k === "gate") e.setGate(v);
   }
 
   function saveCurrent() {
@@ -299,6 +301,9 @@ export default function App() {
         </div>
 
         <div className="deck">
+          <Knob label="GATE" value={tone.gate ?? 0} min={0} max={1} step={0.01}
+            display={`${Math.round((tone.gate ?? 0) * 100)}%`} accent={skin.accent}
+            onChange={(v) => setToneVal("gate", v)} />
           <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
             display={`${Math.round(tone.drive * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("drive", v)} />

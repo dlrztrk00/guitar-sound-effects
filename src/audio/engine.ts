@@ -55,6 +55,10 @@ export class PedalEngine {
   private inputChannel: 0 | 1 = 0;
   private deviceId?: string;
 
+  // noise gate (envelope-following)
+  private gate: ScriptProcessorNode;
+  private gateThreshold = 0; // linear amplitude; 0 = open (off)
+
   private shaper: WaveShaperNode;
   private eq: Record<EqBand, BiquadFilterNode>;
 
@@ -153,9 +157,29 @@ export class PedalEngine {
       this.recChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
     };
 
+    // noise gate: multiplies the signal by an envelope-following gate gain,
+    // opening fast when you play and closing when you stop (kills hum/hiss)
+    this.gate = this.ctx.createScriptProcessor(256, 1, 1);
+    let env = 0;
+    let g = 0;
+    this.gate.onaudioprocess = (e) => {
+      const inp = e.inputBuffer.getChannelData(0);
+      const out = e.outputBuffer.getChannelData(0);
+      const thr = this.gateThreshold;
+      for (let i = 0; i < inp.length; i++) {
+        const a = Math.abs(inp[i]);
+        env = a > env ? a : env * 0.9995; // fast attack, slow release
+        const target = thr <= 0 || env > thr ? 1 : 0;
+        // open quickly, close a bit slower to avoid chatter
+        g += (target - g) * (target > g ? 0.02 : 0.0015);
+        out[i] = inp[i] * g;
+      }
+    };
+
     // permanent wiring (input source gets attached later, in openStream)
-    this.inputGain.connect(this.shaper);
-    this.inputGain.connect(this.dryGain);
+    this.inputGain.connect(this.gate);
+    this.gate.connect(this.shaper);
+    this.gate.connect(this.dryGain);
 
     this.shaper.connect(low);
     low.connect(mid);
@@ -289,6 +313,12 @@ export class PedalEngine {
   /** Reverb wet amount, 0..1. */
   setReverbMix(v: number): void {
     this.reverbGain.gain.value = Math.max(0, Math.min(1, v));
+  }
+
+  /** Noise gate amount, 0..1 (0 = off). Higher closes on louder residual noise. */
+  setGate(v: number): void {
+    const x = Math.max(0, Math.min(1, v));
+    this.gateThreshold = x * x * 0.12; // squared for finer control down low
   }
 
   /** Start collecting raw PCM from the output (for MP3 encoding). */
