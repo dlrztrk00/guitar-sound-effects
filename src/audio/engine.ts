@@ -33,14 +33,31 @@ function makeReverbIR(
   return buf;
 }
 
-// A soft-clipping distortion curve built from tanh.
-function makeDistortionCurve(drive: number): Float32Array<ArrayBuffer> {
+export type DistType = "soft" | "hard" | "fuzz";
+
+// Distortion curve. soft = round tanh clip, hard = square-ish clip,
+// fuzz = asymmetric high-gain (adds buzzy even harmonics).
+function makeDistortionCurve(
+  drive: number,
+  type: DistType
+): Float32Array<ArrayBuffer> {
   const n = 2048;
   const curve = new Float32Array(new ArrayBuffer(n * Float32Array.BYTES_PER_ELEMENT));
-  const k = 1 + drive * 40; // 1 (clean) → 41 (very driven)
+  const k = 1 + drive * 40;
   for (let i = 0; i < n; i++) {
     const x = (i * 2) / n - 1;
-    curve[i] = Math.tanh(k * x) / Math.tanh(k); // normalize peak to ~1
+    let y: number;
+    if (type === "hard") {
+      const g = 1 + drive * 30;
+      y = Math.max(-1, Math.min(1, g * x));
+    } else if (type === "fuzz") {
+      const gp = 1 + drive * 90;
+      const gn = 1 + drive * 45;
+      y = x >= 0 ? Math.tanh(gp * x) : Math.tanh(gn * x);
+    } else {
+      y = Math.tanh(k * x) / Math.tanh(k);
+    }
+    curve[i] = y;
   }
   return curve;
 }
@@ -94,6 +111,7 @@ export class PedalEngine {
   tunerAnalyser: AnalyserNode; // larger window for pitch detection
 
   private drive = 0.5;
+  private distType: DistType = "soft";
   bypassed = false;
 
   constructor() {
@@ -114,7 +132,7 @@ export class PedalEngine {
 
     // --- distortion ---
     this.shaper = this.ctx.createWaveShaper();
-    this.shaper.curve = makeDistortionCurve(this.drive);
+    this.shaper.curve = makeDistortionCurve(this.drive, this.distType);
     this.shaper.oversample = "4x";
 
     // --- 3-band EQ ---
@@ -321,9 +339,15 @@ export class PedalEngine {
     return this.inputChannel;
   }
 
+  /** Distortion character: soft (tanh), hard (clip), or fuzz (asymmetric). */
+  setDistType(type: DistType): void {
+    this.distType = type;
+    this.shaper.curve = makeDistortionCurve(this.drive, this.distType);
+  }
+
   setDrive(v: number): void {
     this.drive = Math.max(0, Math.min(1, v));
-    this.shaper.curve = makeDistortionCurve(this.drive);
+    this.shaper.curve = makeDistortionCurve(this.drive, this.distType);
   }
 
   /** EQ gain in dB, -18..+18. */

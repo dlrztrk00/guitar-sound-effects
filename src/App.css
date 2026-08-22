@@ -447,6 +447,30 @@ header .sub {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── distortion character selector ───────────────────────────── */
+.dist-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.6rem;
+}
+.dist-label {
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  color: var(--ink);
+  opacity: 0.6;
+}
+.dist-seg button {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+.dist-seg .seg-on {
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+}
+
 /* ── effect toggles ──────────────────────────────────────────── */
 .toggles {
   display: flex;

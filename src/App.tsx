@@ -18,6 +18,7 @@ import {
   type Custom,
 } from "./presets";
 import { Mp3Encoder } from "@breezystack/lamejs";
+import type { DistType } from "./audio/engine";
 import "./App.css";
 
 function applyTone(e: PedalEngine, t: Tone) {
@@ -31,6 +32,7 @@ function applyTone(e: PedalEngine, t: Tone) {
   e.setReverbMix(t.reverb ?? 0);
   e.setGate(t.gate ?? 0);
   e.setCab(!!t.cab);
+  e.setDistType(t.dist ?? "soft");
 }
 
 export default function App() {
@@ -196,6 +198,11 @@ export default function App() {
     const next = !(tone.cab ?? false);
     setTone((prev) => ({ ...prev, cab: next }));
     engineRef.current?.setCab(next);
+  }
+
+  function setDist(type: DistType) {
+    setTone((prev) => ({ ...prev, dist: type }));
+    engineRef.current?.setDistType(type);
   }
 
   function shareTone() {
@@ -404,6 +411,23 @@ export default function App() {
           <Knob label="LEVEL" value={level} min={0} max={1.2} step={0.01}
             display={`${Math.round(level * 100)}%`} accent={skin.accent}
             onChange={onLevel} />
+        </div>
+
+        {/* distortion character */}
+        <div className="dist-row">
+          <span className="dist-label">DIST</span>
+          <div className="seg dist-seg">
+            {(["soft", "hard", "fuzz"] as const).map((d) => (
+              <button
+                key={d}
+                className={(tone.dist ?? "soft") === d ? "seg-on" : ""}
+                style={{ ["--accent" as string]: skin.accent }}
+                onClick={() => setDist(d)}
+              >
+                {d.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* effect toggles */}

@@ -1,3 +1,5 @@
+import type { DistType } from "./audio/engine";
+
 // Presets are two levels: pick an artist (sets the skin), then a song (sets the tone).
 
 export type Tone = {
@@ -11,6 +13,7 @@ export type Tone = {
   reverb?: number; // 0..1 (defaults to 0)
   gate?: number; // 0..1 (defaults to 0)
   cab?: boolean; // cabinet/speaker sim (defaults to off)
+  dist?: DistType; // distortion character (defaults to "soft")
 };
 
 export type Skin = {
@@ -75,7 +78,7 @@ export const ARTISTS: Artist[] = [
     songs: [
       { id: "reptilia", name: "Reptilia", tone: t(0.5, -5, 2, 6, 0.05, 0.22, 0.15) },
       { id: "last-nite", name: "Last Nite", tone: t(0.4, -4, 3, 5, 0.05, 0.2, 0.12) },
-      { id: "juicebox", name: "Juicebox", tone: t(0.66, 2, 2, 3, 0.04, 0.2, 0.1) },
+      { id: "juicebox", name: "Juicebox", tone: { ...t(0.66, 2, 2, 3, 0.04, 0.2, 0.1), dist: "hard" } },
       { id: "yoli", name: "You Only Live Once", tone: t(0.5, -2, 3, 4, 0.06, 0.24, 0.15) },
     ],
   },
@@ -90,8 +93,8 @@ export const ARTISTS: Artist[] = [
       ink: "#ecd8e6",
     },
     songs: [
-      { id: "diwk", name: "Do I Wanna Know?", tone: t(0.6, 4, 1, 0, 0.1, 0.3, 0.25) },
-      { id: "ru-mine", name: "R U Mine?", tone: t(0.75, 3, 2, 0, 0.08, 0.25, 0.2) },
+      { id: "diwk", name: "Do I Wanna Know?", tone: { ...t(0.6, 4, 1, 0, 0.1, 0.3, 0.25), dist: "fuzz" } },
+      { id: "ru-mine", name: "R U Mine?", tone: { ...t(0.75, 3, 2, 0, 0.08, 0.25, 0.2), dist: "fuzz" } },
       { id: "brianstorm", name: "Brianstorm", tone: t(0.62, 0, 3, 4, 0.06, 0.2, 0.15) },
       { id: "505", name: "505", tone: t(0.35, 1, 1, 1, 0.16, 0.35, 0.35, 0.28) },
     ],
