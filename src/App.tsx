@@ -571,7 +571,7 @@ export default function App() {
                   onChange={(v) => setToneVal("comp", v)} />
               </div>
               <div className="sb-name">SQUISH</div>
-              <span className={`sb-led ${fx.comp && on ? "lit" : ""}`} />
+              <span className={`sb-led ${fx.comp ? "lit" : ""}`} />
               <button className="sb-switch" onClick={() => toggleFx("comp")}
                 aria-pressed={fx.comp} title="compressor on/off">
                 <span className="sb-cap" />
@@ -603,7 +603,7 @@ export default function App() {
                 ))}
               </div>
               <div className="sb-name">OVERDRIVE</div>
-              <span className={`sb-led ${fx.drive && on ? "lit" : ""}`} />
+              <span className={`sb-led ${fx.drive ? "lit" : ""}`} />
               <button className="sb-switch" onClick={() => toggleFx("drive")}
                 aria-pressed={fx.drive} title="drive on/off">
                 <span className="sb-cap" />
@@ -623,7 +623,7 @@ export default function App() {
                   onChange={(v) => setToneVal("chorus", v)} />
               </div>
               <div className="sb-name">SHIMMER</div>
-              <span className={`sb-led ${fx.chorus && on ? "lit" : ""}`} />
+              <span className={`sb-led ${fx.chorus ? "lit" : ""}`} />
               <button className="sb-switch" onClick={() => toggleFx("chorus")}
                 aria-pressed={fx.chorus} title="chorus on/off">
                 <span className="sb-cap" />
@@ -649,7 +649,7 @@ export default function App() {
                   onChange={(v) => setToneVal("delayFb", v)} />
               </div>
               <div className="sb-name">ECHO</div>
-              <span className={`sb-led ${fx.delay && on ? "lit" : ""}`} />
+              <span className={`sb-led ${fx.delay ? "lit" : ""}`} />
               <button className="sb-switch" onClick={() => toggleFx("delay")}
                 aria-pressed={fx.delay} title="delay on/off">
                 <span className="sb-cap" />

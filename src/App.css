@@ -502,9 +502,12 @@ header .sub {
   backdrop-filter: blur(2px);
 }
 
-/* ── pedalboard: an angled aluminium pedaltrain ── */
+/* ── pedalboard: an angled aluminium pedaltrain, wider than the amp ── */
 .board {
   position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 1.5rem));
   margin-top: 2.4rem;
   border-radius: 10px;
   padding: 1.9rem 1.4rem 1.4rem;
@@ -556,6 +559,7 @@ header .sub {
 .pedals {
   display: flex;
   align-items: flex-start;
+  justify-content: center;
   gap: 0;
   overflow-x: auto;
   padding: 0.5rem 0.1rem 0.7rem;
@@ -572,8 +576,9 @@ header .sub {
 /* a die-cast stompbox */
 .stompbox {
   position: relative;
-  flex: 0 0 auto;
-  width: 104px;
+  flex: 1 1 0;
+  min-width: 92px;
+  max-width: 150px;
   min-height: 168px;
   border-radius: 11px;
   padding: 0.7rem 0.5rem 0.55rem;
@@ -600,7 +605,7 @@ header .sub {
     inset 0 -4px 9px rgba(0, 0, 0, 0.35);
   transition: filter 0.15s, box-shadow 0.15s;
 }
-.stompbox.wide { width: 190px; }
+.stompbox.wide { flex: 1.8 1 0; min-width: 176px; max-width: 240px; }
 .stompbox:not(.engaged) {
   filter: saturate(0.5) brightness(0.82);
 }
@@ -668,13 +673,11 @@ header .sub {
   background: radial-gradient(circle at 35% 30%, #3a3a3a, #141414);
   box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.9);
 }
+/* classic red stompbox LED — lights when the footswitch is engaged */
 .sb-led.lit {
-  background: radial-gradient(
-    circle at 35% 30%,
-    color-mix(in oklab, var(--pc, #fff) 55%, white),
-    var(--pc, #fff)
-  );
-  box-shadow: 0 0 7px var(--pc), 0 0 12px var(--pc);
+  background: radial-gradient(circle at 35% 30%, #ff8a7a, #e01f1f 70%);
+  box-shadow: 0 0 7px #ff3b3b, 0 0 13px #ff2a2a,
+    inset 0 1px 1px rgba(255, 255, 255, 0.6);
 }
 
 /* the footswitch */
