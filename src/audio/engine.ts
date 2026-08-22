@@ -62,6 +62,14 @@ function makeDistortionCurve(
   return curve;
 }
 
+// A straight passthrough curve — used when the drive pedal is switched off.
+function makeLinearCurve(): Float32Array<ArrayBuffer> {
+  const n = 2048;
+  const curve = new Float32Array(new ArrayBuffer(n * Float32Array.BYTES_PER_ELEMENT));
+  for (let i = 0; i < n; i++) curve[i] = (i * 2) / n - 1;
+  return curve;
+}
+
 export class PedalEngine {
   ctx: AudioContext;
   private stream?: MediaStream;
@@ -127,6 +135,15 @@ export class PedalEngine {
   private drive = 0.5;
   private distType: DistType = "soft";
   bypassed = false;
+
+  // per-pedal on/off (each stompbox's footswitch)
+  private compVal = 0;
+  private compOn = true;
+  private driveOn = true;
+  private chorusVal = 0;
+  private chorusOn = true;
+  private delayVal = 0;
+  private delayOn = true;
 
   constructor() {
     this.ctx = new AudioContext({ latencyHint: "interactive" });
@@ -391,12 +408,24 @@ export class PedalEngine {
   /** Distortion character: soft (tanh), hard (clip), or fuzz (asymmetric). */
   setDistType(type: DistType): void {
     this.distType = type;
-    this.shaper.curve = makeDistortionCurve(this.drive, this.distType);
+    this.updateShaper();
   }
 
   setDrive(v: number): void {
     this.drive = Math.max(0, Math.min(1, v));
-    this.shaper.curve = makeDistortionCurve(this.drive, this.distType);
+    this.updateShaper();
+  }
+
+  private updateShaper(): void {
+    this.shaper.curve = this.driveOn
+      ? makeDistortionCurve(this.drive, this.distType)
+      : makeLinearCurve();
+  }
+
+  /** DRIVE pedal footswitch — off = clean passthrough. */
+  setDriveEnabled(on: boolean): void {
+    this.driveOn = on;
+    this.updateShaper();
   }
 
   /** EQ gain in dB, -18..+18. */
@@ -406,7 +435,13 @@ export class PedalEngine {
 
   /** Delay wet amount 0..1. */
   setDelayMix(v: number): void {
-    this.delayMix.gain.value = Math.max(0, Math.min(1, v));
+    this.delayVal = Math.max(0, Math.min(1, v));
+    this.delayMix.gain.value = this.delayOn ? this.delayVal : 0;
+  }
+  /** DELAY pedal footswitch. */
+  setDelayEnabled(on: boolean): void {
+    this.delayOn = on;
+    this.delayMix.gain.value = on ? this.delayVal : 0;
   }
   /** Delay time in seconds, 0..1. */
   setDelayTime(s: number): void {
@@ -442,12 +477,27 @@ export class PedalEngine {
 
   /** Chorus wet amount, 0..1. */
   setChorus(v: number): void {
-    this.chorusMix.gain.value = Math.max(0, Math.min(1, v));
+    this.chorusVal = Math.max(0, Math.min(1, v));
+    this.chorusMix.gain.value = this.chorusOn ? this.chorusVal : 0;
+  }
+  /** CHORUS pedal footswitch. */
+  setChorusEnabled(on: boolean): void {
+    this.chorusOn = on;
+    this.chorusMix.gain.value = on ? this.chorusVal : 0;
   }
 
   /** Compressor amount, 0..1 (0 = transparent). */
   setComp(v: number): void {
-    const x = Math.max(0, Math.min(1, v));
+    this.compVal = Math.max(0, Math.min(1, v));
+    this.applyComp();
+  }
+  /** COMP pedal footswitch. */
+  setCompEnabled(on: boolean): void {
+    this.compOn = on;
+    this.applyComp();
+  }
+  private applyComp(): void {
+    const x = this.compOn ? this.compVal : 0;
     const t = this.ctx.currentTime;
     this.comp.threshold.setTargetAtTime(-40 * x, t, 0.01);
     this.comp.ratio.setTargetAtTime(1 + 11 * x, t, 0.01);

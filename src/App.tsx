@@ -61,6 +61,13 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [loopState, setLoopState] = useState<"idle" | "rec" | "play">("idle");
   const [error, setError] = useState<string | null>(null);
+  // each stompbox's footswitch (true = engaged)
+  const [fx, setFx] = useState({
+    comp: true,
+    drive: true,
+    chorus: true,
+    delay: true,
+  });
 
   // built-in artists + a "Saved" section when the user has presets
   const savedArtist: Artist = {
@@ -102,6 +109,10 @@ export default function App() {
       applyTone(engineRef.current, tone);
       engineRef.current.setLevel(level);
       engineRef.current.setBypass(bypassed);
+      engineRef.current.setCompEnabled(fx.comp);
+      engineRef.current.setDriveEnabled(fx.drive);
+      engineRef.current.setChorusEnabled(fx.chorus);
+      engineRef.current.setDelayEnabled(fx.delay);
       setRunning(true);
       setDevices(await engineRef.current.listInputs());
     } catch (e) {
@@ -268,6 +279,20 @@ export default function App() {
   function setDist(type: DistType) {
     setTone((prev) => ({ ...prev, dist: type }));
     engineRef.current?.setDistType(type);
+  }
+
+  function toggleFx(k: "comp" | "drive" | "chorus" | "delay") {
+    setFx((prev) => {
+      const next = { ...prev, [k]: !prev[k] };
+      const e = engineRef.current;
+      if (e) {
+        if (k === "comp") e.setCompEnabled(next.comp);
+        else if (k === "drive") e.setDriveEnabled(next.drive);
+        else if (k === "chorus") e.setChorusEnabled(next.chorus);
+        else if (k === "delay") e.setDelayEnabled(next.delay);
+      }
+      return next;
+    });
   }
 
   function randomTone() {
@@ -534,47 +559,107 @@ export default function App() {
         {/* ── pedalboard (step 2 splits these into individual pedals) ── */}
         <div className="board">
           <div className="board-label">PEDALBOARD</div>
-          <div className="deck">
-            <Knob label="COMP" value={tone.comp ?? 0} min={0} max={1} step={0.01}
-              display={`${Math.round((tone.comp ?? 0) * 100)}%`} accent={skin.accent}
-              onChange={(v) => setToneVal("comp", v)} />
-            <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
-              display={`${Math.round(tone.drive * 100)}%`} accent={skin.accent}
-              onChange={(v) => setToneVal("drive", v)} />
-            <Knob label="CHORUS" value={tone.chorus ?? 0} min={0} max={1} step={0.01}
-              display={`${Math.round((tone.chorus ?? 0) * 100)}%`} accent={skin.accent}
-              onChange={(v) => setToneVal("chorus", v)} />
-            <Knob label="DELAY" value={tone.delayMix} min={0} max={1} step={0.01}
-              display={`${Math.round(tone.delayMix * 100)}%`} accent={skin.accent}
-              onChange={(v) => setToneVal("delayMix", v)} />
-            <Knob label="TIME" value={tone.delayTime} min={0.02} max={1} step={0.01}
-              display={`${Math.round(tone.delayTime * 1000)}ms`} accent={skin.accent}
-              onChange={(v) => setToneVal("delayTime", v)} />
-            <Knob label="F.BACK" value={tone.delayFb} min={0} max={0.9} step={0.01}
-              display={`${Math.round(tone.delayFb * 100)}%`} accent={skin.accent}
-              onChange={(v) => setToneVal("delayFb", v)} />
-          </div>
+          <div className="pedals">
+            {/* COMP */}
+            <div
+              className={`stompbox ${fx.comp ? "engaged" : ""}`}
+              style={{ ["--pc" as string]: "#4a86b0" }}
+            >
+              <div className="sb-knobs">
+                <Knob label="COMP" value={tone.comp ?? 0} min={0} max={1} step={0.01}
+                  display={`${Math.round((tone.comp ?? 0) * 100)}%`} accent="#4a86b0"
+                  onChange={(v) => setToneVal("comp", v)} />
+              </div>
+              <div className="sb-name">SQUISH</div>
+              <span className={`sb-led ${fx.comp && on ? "lit" : ""}`} />
+              <button className="sb-switch" onClick={() => toggleFx("comp")}
+                aria-pressed={fx.comp} title="compressor on/off">
+                <span className="sb-cap" />
+              </button>
+            </div>
 
-          {/* distortion character */}
-          <div className="dist-row">
-            <span className="dist-label">DIST</span>
-            <div className="seg dist-seg">
-              {(["soft", "hard", "fuzz"] as const).map((d) => (
-                <button
-                  key={d}
-                  className={(tone.dist ?? "soft") === d ? "seg-on" : ""}
-                  style={{ ["--accent" as string]: skin.accent }}
-                  onClick={() => setDist(d)}
-                >
-                  {d.toUpperCase()}
-                </button>
-              ))}
+            <span className="patch" />
+
+            {/* DRIVE */}
+            <div
+              className={`stompbox tall ${fx.drive ? "engaged" : ""}`}
+              style={{ ["--pc" as string]: "#d98a3d" }}
+            >
+              <div className="sb-knobs">
+                <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
+                  display={`${Math.round(tone.drive * 100)}%`} accent="#d98a3d"
+                  onChange={(v) => setToneVal("drive", v)} />
+              </div>
+              <div className="seg dist-seg sb-seg">
+                {(["soft", "hard", "fuzz"] as const).map((d) => (
+                  <button
+                    key={d}
+                    className={(tone.dist ?? "soft") === d ? "seg-on" : ""}
+                    style={{ ["--accent" as string]: "#d98a3d" }}
+                    onClick={() => setDist(d)}
+                  >
+                    {d[0].toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              <div className="sb-name">OVERDRIVE</div>
+              <span className={`sb-led ${fx.drive && on ? "lit" : ""}`} />
+              <button className="sb-switch" onClick={() => toggleFx("drive")}
+                aria-pressed={fx.drive} title="drive on/off">
+                <span className="sb-cap" />
+              </button>
+            </div>
+
+            <span className="patch" />
+
+            {/* CHORUS */}
+            <div
+              className={`stompbox ${fx.chorus ? "engaged" : ""}`}
+              style={{ ["--pc" as string]: "#3aa6a0" }}
+            >
+              <div className="sb-knobs">
+                <Knob label="DEPTH" value={tone.chorus ?? 0} min={0} max={1} step={0.01}
+                  display={`${Math.round((tone.chorus ?? 0) * 100)}%`} accent="#3aa6a0"
+                  onChange={(v) => setToneVal("chorus", v)} />
+              </div>
+              <div className="sb-name">SHIMMER</div>
+              <span className={`sb-led ${fx.chorus && on ? "lit" : ""}`} />
+              <button className="sb-switch" onClick={() => toggleFx("chorus")}
+                aria-pressed={fx.chorus} title="chorus on/off">
+                <span className="sb-cap" />
+              </button>
+            </div>
+
+            <span className="patch" />
+
+            {/* DELAY (a bigger box — three knobs) */}
+            <div
+              className={`stompbox wide ${fx.delay ? "engaged" : ""}`}
+              style={{ ["--pc" as string]: "#6a8f4f" }}
+            >
+              <div className="sb-knobs">
+                <Knob label="MIX" value={tone.delayMix} min={0} max={1} step={0.01}
+                  display={`${Math.round(tone.delayMix * 100)}%`} accent="#6a8f4f"
+                  onChange={(v) => setToneVal("delayMix", v)} />
+                <Knob label="TIME" value={tone.delayTime} min={0.02} max={1} step={0.01}
+                  display={`${Math.round(tone.delayTime * 1000)}ms`} accent="#6a8f4f"
+                  onChange={(v) => setToneVal("delayTime", v)} />
+                <Knob label="RPTS" value={tone.delayFb} min={0} max={0.9} step={0.01}
+                  display={`${Math.round(tone.delayFb * 100)}%`} accent="#6a8f4f"
+                  onChange={(v) => setToneVal("delayFb", v)} />
+              </div>
+              <div className="sb-name">ECHO</div>
+              <span className={`sb-led ${fx.delay && on ? "lit" : ""}`} />
+              <button className="sb-switch" onClick={() => toggleFx("delay")}
+                aria-pressed={fx.delay} title="delay on/off">
+                <span className="sb-cap" />
+              </button>
             </div>
           </div>
 
           <button className={`stomp ${on ? "lit" : ""}`} onClick={toggleBypass} disabled={!running}>
             <span className="stomp-ring" />
-            {bypassed ? "BYPASS" : "ON"}
+            {bypassed ? "BYPASS — all off" : "RIG ON"}
           </button>
         </div>
       </div>
