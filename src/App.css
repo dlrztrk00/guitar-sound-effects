@@ -281,16 +281,18 @@ header .sub {
 
 /* ── knob deck ───────────────────────────────────────────────── */
 .deck {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.9rem 0.5rem;
-  margin: 1.4rem 0 1.3rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem 0.7rem;
+  margin: 1.4rem 0 0.3rem;
 }
 .knob {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
+  width: 58px;
 }
 .knob-dial {
   width: 58px;

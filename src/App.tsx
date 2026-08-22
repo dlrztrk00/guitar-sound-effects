@@ -25,6 +25,7 @@ function applyTone(e: PedalEngine, t: Tone) {
   e.setDelayMix(t.delayMix);
   e.setDelayTime(t.delayTime);
   e.setDelayFeedback(t.delayFb);
+  e.setReverbMix(t.reverb ?? 0);
 }
 
 export default function App() {
@@ -125,6 +126,7 @@ export default function App() {
     else if (k === "delayMix") e.setDelayMix(v);
     else if (k === "delayTime") e.setDelayTime(v);
     else if (k === "delayFb") e.setDelayFeedback(v);
+    else if (k === "reverb") e.setReverbMix(v);
   }
 
   function saveCurrent() {
@@ -318,6 +320,9 @@ export default function App() {
           <Knob label="F.BACK" value={tone.delayFb} min={0} max={0.9} step={0.01}
             display={`${Math.round(tone.delayFb * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("delayFb", v)} />
+          <Knob label="REVERB" value={tone.reverb ?? 0} min={0} max={1} step={0.01}
+            display={`${Math.round((tone.reverb ?? 0) * 100)}%`} accent={skin.accent}
+            onChange={(v) => setToneVal("reverb", v)} />
           <Knob label="LEVEL" value={level} min={0} max={1.2} step={0.01}
             display={`${Math.round(level * 100)}%`} accent={skin.accent}
             onChange={onLevel} />

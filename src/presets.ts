@@ -8,6 +8,7 @@ export type Tone = {
   delayMix: number; // 0..1
   delayTime: number; // 0..1 (seconds)
   delayFb: number; // 0..0.9
+  reverb?: number; // 0..1 (defaults to 0)
 };
 
 export type Skin = {
@@ -24,8 +25,8 @@ export type Artist = { id: string; name: string; skin: Skin; songs: Song[] };
 
 const t = (
   drive: number, low: number, mid: number, high: number,
-  delayMix: number, delayTime: number, delayFb: number
-): Tone => ({ drive, low, mid, high, delayMix, delayTime, delayFb });
+  delayMix: number, delayTime: number, delayFb: number, reverb = 0
+): Tone => ({ drive, low, mid, high, delayMix, delayTime, delayFb, reverb });
 
 export const ARTISTS: Artist[] = [
   {
@@ -51,10 +52,10 @@ export const ARTISTS: Artist[] = [
     },
     // songs where there's actually a guitar to shape (not Jumpsuit)
     songs: [
-      { id: "shy-away", name: "Shy Away", tone: t(0.45, 0, 2, 4, 0.16, 0.3, 0.3) },
+      { id: "shy-away", name: "Shy Away", tone: t(0.45, 0, 2, 4, 0.16, 0.3, 0.3, 0.18) },
       { id: "saturday", name: "Saturday", tone: t(0.28, -2, 3, 3, 0.1, 0.25, 0.2) },
       { id: "the-outside", name: "The Outside", tone: t(0.55, 2, 1, 1, 0.1, 0.28, 0.25) },
-      { id: "heathens", name: "Heathens", tone: t(0.34, 4, -2, -2, 0.3, 0.4, 0.4) },
+      { id: "heathens", name: "Heathens", tone: t(0.34, 4, -2, -2, 0.3, 0.4, 0.4, 0.4) },
     ],
   },
   {
@@ -89,7 +90,7 @@ export const ARTISTS: Artist[] = [
       { id: "diwk", name: "Do I Wanna Know?", tone: t(0.6, 4, 1, 0, 0.1, 0.3, 0.25) },
       { id: "ru-mine", name: "R U Mine?", tone: t(0.75, 3, 2, 0, 0.08, 0.25, 0.2) },
       { id: "brianstorm", name: "Brianstorm", tone: t(0.62, 0, 3, 4, 0.06, 0.2, 0.15) },
-      { id: "505", name: "505", tone: t(0.35, 1, 1, 1, 0.16, 0.35, 0.35) },
+      { id: "505", name: "505", tone: t(0.35, 1, 1, 1, 0.16, 0.35, 0.35, 0.28) },
     ],
   },
   {
@@ -105,7 +106,7 @@ export const ARTISTS: Artist[] = [
     },
     songs: [
       { id: "kathleen", name: "Kathleen", tone: t(0.55, -1, 3, 4, 0.08, 0.24, 0.18) },
-      { id: "cocoon", name: "Cocoon", tone: t(0.4, 0, 2, 4, 0.12, 0.3, 0.25) },
+      { id: "cocoon", name: "Cocoon", tone: t(0.4, 0, 2, 4, 0.12, 0.3, 0.25, 0.2) },
       { id: "soundcheck", name: "Soundcheck", tone: t(0.6, 2, 2, 2, 0.08, 0.24, 0.2) },
       { id: "seven", name: "7", tone: t(0.5, 1, 3, 3, 0.1, 0.28, 0.22) },
     ],

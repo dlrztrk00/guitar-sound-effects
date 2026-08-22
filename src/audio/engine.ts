@@ -15,6 +15,24 @@
 
 export type EqBand = "low" | "mid" | "high";
 
+// Build a simple reverb impulse: decaying noise. Stereo for a bit of width.
+function makeReverbIR(
+  ctx: BaseAudioContext,
+  seconds: number,
+  decay: number
+): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.max(1, Math.floor(rate * seconds));
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return buf;
+}
+
 // A soft-clipping distortion curve built from tanh.
 function makeDistortionCurve(drive: number): Float32Array<ArrayBuffer> {
   const n = 2048;
@@ -44,6 +62,10 @@ export class PedalEngine {
   private delay: DelayNode;
   private delayFeedback: GainNode;
   private delayMix: GainNode;
+
+  // reverb send
+  private reverb: ConvolverNode;
+  private reverbGain: GainNode;
 
   private wetGain: GainNode;
   private dryGain: GainNode;
@@ -97,6 +119,12 @@ export class PedalEngine {
     this.delayMix = this.ctx.createGain();
     this.delayMix.gain.value = 0; // off by default
 
+    // --- reverb send ---
+    this.reverb = this.ctx.createConvolver();
+    this.reverb.buffer = makeReverbIR(this.ctx, 2.4, 3.0);
+    this.reverbGain = this.ctx.createGain();
+    this.reverbGain.gain.value = 0; // off by default
+
     // --- mix / bypass / output ---
     this.wetGain = this.ctx.createGain();
     this.dryGain = this.ctx.createGain();
@@ -143,6 +171,11 @@ export class PedalEngine {
 
     this.wetGain.connect(this.master);
     this.dryGain.connect(this.master);
+
+    // reverb send off the wet signal
+    this.wetGain.connect(this.reverb);
+    this.reverb.connect(this.reverbGain);
+    this.reverbGain.connect(this.master);
 
     this.master.connect(this.limiter);
     this.limiter.connect(this.analyser);
@@ -251,6 +284,11 @@ export class PedalEngine {
   /** Output volume, 0..1.4 (the limiter still catches anything hot). */
   setLevel(v: number): void {
     this.master.gain.value = Math.max(0, Math.min(1.4, v));
+  }
+
+  /** Reverb wet amount, 0..1. */
+  setReverbMix(v: number): void {
+    this.reverbGain.gain.value = Math.max(0, Math.min(1, v));
   }
 
   /** Start collecting raw PCM from the output (for MP3 encoding). */
