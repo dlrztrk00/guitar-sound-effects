@@ -34,6 +34,7 @@ function applyTone(e: PedalEngine, t: Tone) {
   e.setCab(!!t.cab);
   e.setDistType(t.dist ?? "soft");
   e.setChorus(t.chorus ?? 0);
+  e.setComp(t.comp ?? 0);
 }
 
 export default function App() {
@@ -161,6 +162,7 @@ export default function App() {
     else if (k === "reverb") e.setReverbMix(v);
     else if (k === "gate") e.setGate(v);
     else if (k === "chorus") e.setChorus(v);
+    else if (k === "comp") e.setComp(v);
   }
 
   function saveCurrent() {
@@ -386,6 +388,9 @@ export default function App() {
           <Knob label="GATE" value={tone.gate ?? 0} min={0} max={1} step={0.01}
             display={`${Math.round((tone.gate ?? 0) * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("gate", v)} />
+          <Knob label="COMP" value={tone.comp ?? 0} min={0} max={1} step={0.01}
+            display={`${Math.round((tone.comp ?? 0) * 100)}%`} accent={skin.accent}
+            onChange={(v) => setToneVal("comp", v)} />
           <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
             display={`${Math.round(tone.drive * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("drive", v)} />

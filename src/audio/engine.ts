@@ -77,6 +77,10 @@ export class PedalEngine {
   private gateThreshold = 0; // linear amplitude; 0 = open (off)
   private gateBuf = new Float32Array(1024);
 
+  // input compressor (musical — separate from the output limiter)
+  private comp: DynamicsCompressorNode;
+  private compMakeup: GainNode;
+
   private shaper: WaveShaperNode;
   private eq: Record<EqBand, BiquadFilterNode>;
 
@@ -252,10 +256,22 @@ export class PedalEngine {
     };
     gateTick();
 
+    // input compressor (musical) — evens out picking dynamics, adds sustain
+    this.comp = this.ctx.createDynamicsCompressor();
+    this.comp.threshold.value = 0; // starts transparent (COMP at 0)
+    this.comp.ratio.value = 1;
+    this.comp.knee.value = 6;
+    this.comp.attack.value = 0.003;
+    this.comp.release.value = 0.25;
+    this.compMakeup = this.ctx.createGain();
+    this.compMakeup.gain.value = 1;
+
     // permanent wiring (input source gets attached later, in openStream)
     this.inputGain.connect(this.gateGain);
-    this.gateGain.connect(this.shaper);
-    this.gateGain.connect(this.dryGain);
+    this.gateGain.connect(this.comp);
+    this.comp.connect(this.compMakeup);
+    this.compMakeup.connect(this.shaper);
+    this.compMakeup.connect(this.dryGain);
 
     this.shaper.connect(low);
     low.connect(mid);
@@ -418,6 +434,15 @@ export class PedalEngine {
   /** Chorus wet amount, 0..1. */
   setChorus(v: number): void {
     this.chorusMix.gain.value = Math.max(0, Math.min(1, v));
+  }
+
+  /** Compressor amount, 0..1 (0 = transparent). */
+  setComp(v: number): void {
+    const x = Math.max(0, Math.min(1, v));
+    const t = this.ctx.currentTime;
+    this.comp.threshold.setTargetAtTime(-40 * x, t, 0.01);
+    this.comp.ratio.setTargetAtTime(1 + 11 * x, t, 0.01);
+    this.compMakeup.gain.setTargetAtTime(1 + 1.5 * x, t, 0.01);
   }
 
   /** Cabinet / speaker sim on or off. */
