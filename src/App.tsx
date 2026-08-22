@@ -435,119 +435,137 @@ export default function App() {
         </div>
       )}
 
-      {/* the pedal */}
+      {/* the rig: amp head sitting on a speaker cabinet, then a pedalboard */}
       <div
-        className={`pedal ${on ? "on" : "off"}`}
+        className={`rig ${on ? "on" : "off"}`}
         style={{
-          background: skin.chassis,
           ["--accent" as string]: skin.accent,
           ["--ink" as string]: skin.ink,
         }}
       >
-        <span className="screw tl" />
-        <span className="screw tr" />
-        <span className="screw bl" />
-        <span className="screw br" />
+        {/* ── amp head ── */}
+        <div className="amp" style={{ background: skin.chassis }}>
+          <span className="corner tl" />
+          <span className="corner tr" />
+          <span className="corner bl" />
+          <span className="corner br" />
 
-        <div className="brand">SOUND//BOX</div>
-
-        <div className="faceplate" style={{ background: faceBg }}>
-          <div className="face-top">
-            <span className="preset-name">{faceName}</span>
-            <span className={`dot ${on ? "lit" : ""}`} />
+          <div className="amp-top">
+            <div className="amp-logo">SOUND<span>//</span>BOX</div>
+            <span className={`jewel ${on ? "lit" : ""}`} />
           </div>
-          <p className="preset-tag">{faceTag}</p>
-          <div className="screen">
-            {running && tunerOn ? (
-              <Tuner
-                analyser={engineRef.current!.tunerAnalyser}
-                sampleRate={engineRef.current!.ctx.sampleRate}
-              />
-            ) : (
-              <Spectrum analyser={running ? engineRef.current!.analyser : null} />
-            )}
-          </div>
-        </div>
 
-        <div className="deck">
-          <Knob label="GATE" value={tone.gate ?? 0} min={0} max={1} step={0.01}
-            display={`${Math.round((tone.gate ?? 0) * 100)}%`} accent={skin.accent}
-            onChange={(v) => setToneVal("gate", v)} />
-          <Knob label="COMP" value={tone.comp ?? 0} min={0} max={1} step={0.01}
-            display={`${Math.round((tone.comp ?? 0) * 100)}%`} accent={skin.accent}
-            onChange={(v) => setToneVal("comp", v)} />
-          <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
-            display={`${Math.round(tone.drive * 100)}%`} accent={skin.accent}
-            onChange={(v) => setToneVal("drive", v)} />
-          <Knob label="LOW" value={tone.low} min={-18} max={18} step={1}
-            display={`${tone.low > 0 ? "+" : ""}${tone.low}`} accent={skin.accent}
-            onChange={(v) => setToneVal("low", v)} />
-          <Knob label="MID" value={tone.mid} min={-18} max={18} step={1}
-            display={`${tone.mid > 0 ? "+" : ""}${tone.mid}`} accent={skin.accent}
-            onChange={(v) => setToneVal("mid", v)} />
-          <Knob label="HIGH" value={tone.high} min={-18} max={18} step={1}
-            display={`${tone.high > 0 ? "+" : ""}${tone.high}`} accent={skin.accent}
-            onChange={(v) => setToneVal("high", v)} />
-          <Knob label="DELAY" value={tone.delayMix} min={0} max={1} step={0.01}
-            display={`${Math.round(tone.delayMix * 100)}%`} accent={skin.accent}
-            onChange={(v) => setToneVal("delayMix", v)} />
-          <Knob label="TIME" value={tone.delayTime} min={0.02} max={1} step={0.01}
-            display={`${Math.round(tone.delayTime * 1000)}ms`} accent={skin.accent}
-            onChange={(v) => setToneVal("delayTime", v)} />
-          <Knob label="F.BACK" value={tone.delayFb} min={0} max={0.9} step={0.01}
-            display={`${Math.round(tone.delayFb * 100)}%`} accent={skin.accent}
-            onChange={(v) => setToneVal("delayFb", v)} />
-          <Knob label="REVERB" value={tone.reverb ?? 0} min={0} max={1} step={0.01}
-            display={`${Math.round((tone.reverb ?? 0) * 100)}%`} accent={skin.accent}
-            onChange={(v) => setToneVal("reverb", v)} />
-          <Knob label="CHORUS" value={tone.chorus ?? 0} min={0} max={1} step={0.01}
-            display={`${Math.round((tone.chorus ?? 0) * 100)}%`} accent={skin.accent}
-            onChange={(v) => setToneVal("chorus", v)} />
-          <Knob label="LEVEL" value={level} min={0} max={1.2} step={0.01}
-            display={`${Math.round(level * 100)}%`} accent={skin.accent}
-            onChange={onLevel} />
-        </div>
+          <div className="amp-panel">
+            <div className="amp-screen-wrap">
+              <div className="amp-name-row">
+                <span className="amp-name">{faceName}</span>
+                <span className="amp-tag">{faceTag}</span>
+              </div>
+              <div className="screen">
+                {running && tunerOn ? (
+                  <Tuner
+                    analyser={engineRef.current!.tunerAnalyser}
+                    sampleRate={engineRef.current!.ctx.sampleRate}
+                  />
+                ) : (
+                  <Spectrum analyser={running ? engineRef.current!.analyser : null} />
+                )}
+              </div>
+            </div>
 
-        {/* distortion character */}
-        <div className="dist-row">
-          <span className="dist-label">DIST</span>
-          <div className="seg dist-seg">
-            {(["soft", "hard", "fuzz"] as const).map((d) => (
+            <div className="amp-knobs">
+              <Knob label="GATE" value={tone.gate ?? 0} min={0} max={1} step={0.01}
+                display={`${Math.round((tone.gate ?? 0) * 100)}%`} accent={skin.accent}
+                onChange={(v) => setToneVal("gate", v)} />
+              <Knob label="LOW" value={tone.low} min={-18} max={18} step={1}
+                display={`${tone.low > 0 ? "+" : ""}${tone.low}`} accent={skin.accent}
+                onChange={(v) => setToneVal("low", v)} />
+              <Knob label="MID" value={tone.mid} min={-18} max={18} step={1}
+                display={`${tone.mid > 0 ? "+" : ""}${tone.mid}`} accent={skin.accent}
+                onChange={(v) => setToneVal("mid", v)} />
+              <Knob label="HIGH" value={tone.high} min={-18} max={18} step={1}
+                display={`${tone.high > 0 ? "+" : ""}${tone.high}`} accent={skin.accent}
+                onChange={(v) => setToneVal("high", v)} />
+              <Knob label="REVERB" value={tone.reverb ?? 0} min={0} max={1} step={0.01}
+                display={`${Math.round((tone.reverb ?? 0) * 100)}%`} accent={skin.accent}
+                onChange={(v) => setToneVal("reverb", v)} />
+              <Knob label="MASTER" value={level} min={0} max={1.2} step={0.01}
+                display={`${Math.round(level * 100)}%`} accent={skin.accent}
+                onChange={onLevel} />
+            </div>
+
+            <div className="amp-toggles">
               <button
-                key={d}
-                className={(tone.dist ?? "soft") === d ? "seg-on" : ""}
+                className={`toggle ${tone.cab ? "on" : ""}`}
                 style={{ ["--accent" as string]: skin.accent }}
-                onClick={() => setDist(d)}
+                onClick={toggleCab}
               >
-                {d.toUpperCase()}
+                CAB SIM
               </button>
-            ))}
+              <button
+                className={`toggle ${tunerOn ? "on" : ""}`}
+                style={{ ["--accent" as string]: skin.accent }}
+                onClick={() => setTunerOn((v) => !v)}
+                disabled={!running}
+              >
+                TUNER
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* effect toggles */}
-        <div className="toggles">
-          <button
-            className={`toggle ${tone.cab ? "on" : ""}`}
-            style={{ ["--accent" as string]: skin.accent }}
-            onClick={toggleCab}
-          >
-            CAB SIM
-          </button>
-          <button
-            className={`toggle ${tunerOn ? "on" : ""}`}
-            style={{ ["--accent" as string]: skin.accent }}
-            onClick={() => setTunerOn((v) => !v)}
-            disabled={!running}
-          >
-            TUNER
-          </button>
+        {/* ── speaker cabinet (shows the artist art through the grille) ── */}
+        <div className="cab">
+          <div className="grille" style={{ background: faceBg }} />
+          <div className="cab-badge">{artist.name}</div>
         </div>
 
-        <button className={`stomp ${on ? "lit" : ""}`} onClick={toggleBypass} disabled={!running}>
-          <span className="stomp-ring" />
-          {bypassed ? "BYPASS" : "ON"}
-        </button>
+        {/* ── pedalboard (step 2 splits these into individual pedals) ── */}
+        <div className="board">
+          <div className="board-label">PEDALBOARD</div>
+          <div className="deck">
+            <Knob label="COMP" value={tone.comp ?? 0} min={0} max={1} step={0.01}
+              display={`${Math.round((tone.comp ?? 0) * 100)}%`} accent={skin.accent}
+              onChange={(v) => setToneVal("comp", v)} />
+            <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
+              display={`${Math.round(tone.drive * 100)}%`} accent={skin.accent}
+              onChange={(v) => setToneVal("drive", v)} />
+            <Knob label="CHORUS" value={tone.chorus ?? 0} min={0} max={1} step={0.01}
+              display={`${Math.round((tone.chorus ?? 0) * 100)}%`} accent={skin.accent}
+              onChange={(v) => setToneVal("chorus", v)} />
+            <Knob label="DELAY" value={tone.delayMix} min={0} max={1} step={0.01}
+              display={`${Math.round(tone.delayMix * 100)}%`} accent={skin.accent}
+              onChange={(v) => setToneVal("delayMix", v)} />
+            <Knob label="TIME" value={tone.delayTime} min={0.02} max={1} step={0.01}
+              display={`${Math.round(tone.delayTime * 1000)}ms`} accent={skin.accent}
+              onChange={(v) => setToneVal("delayTime", v)} />
+            <Knob label="F.BACK" value={tone.delayFb} min={0} max={0.9} step={0.01}
+              display={`${Math.round(tone.delayFb * 100)}%`} accent={skin.accent}
+              onChange={(v) => setToneVal("delayFb", v)} />
+          </div>
+
+          {/* distortion character */}
+          <div className="dist-row">
+            <span className="dist-label">DIST</span>
+            <div className="seg dist-seg">
+              {(["soft", "hard", "fuzz"] as const).map((d) => (
+                <button
+                  key={d}
+                  className={(tone.dist ?? "soft") === d ? "seg-on" : ""}
+                  style={{ ["--accent" as string]: skin.accent }}
+                  onClick={() => setDist(d)}
+                >
+                  {d.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button className={`stomp ${on ? "lit" : ""}`} onClick={toggleBypass} disabled={!running}>
+            <span className="stomp-ring" />
+            {bypassed ? "BYPASS" : "ON"}
+          </button>
+        </div>
       </div>
 
       {/* save the current tone as a preset */}
