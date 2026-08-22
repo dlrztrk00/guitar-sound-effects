@@ -40,6 +40,7 @@ function applyTone(e: PedalEngine, t: Tone) {
 export default function App() {
   const initShared = sharedFromHash();
   const engineRef = useRef<PedalEngine | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [running, setRunning] = useState(false);
   const [bypassed, setBypassed] = useState(false);
   const [artistId, setArtistId] = useState(initShared ? "shared" : DEFAULT_ARTIST);
@@ -197,6 +198,48 @@ export default function App() {
     setPresetName("");
     setArtistId("saved");
     setSongId(id);
+  }
+
+  function exportPresets() {
+    if (!customs.length) return;
+    const blob = new Blob([JSON.stringify(customs, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `soundbox-presets-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importPresets(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        const incoming = (Array.isArray(parsed) ? parsed : [parsed]) as Custom[];
+        // keep only well-formed presets, and drop ids we already have
+        const have = new Set(customs.map((c) => c.id));
+        const clean = incoming.filter(
+          (c) => c && c.id && c.name && c.tone && c.skin && !have.has(c.id)
+        );
+        if (!clean.length) {
+          setShareMsg("nothing new to import");
+          setTimeout(() => setShareMsg(""), 2500);
+          return;
+        }
+        const next = [...customs, ...clean];
+        setCustoms(next);
+        saveCustoms(next);
+        setShareMsg(`imported ${clean.length} preset${clean.length > 1 ? "s" : ""}`);
+        setTimeout(() => setShareMsg(""), 2500);
+      } catch {
+        setShareMsg("couldn't read that file");
+        setTimeout(() => setShareMsg(""), 2500);
+      }
+    };
+    reader.readAsText(file);
   }
 
   function deleteCustom(id: string) {
@@ -525,6 +568,32 @@ export default function App() {
             ✕
           </button>
         )}
+        <button
+          className="io-btn"
+          title="export your saved presets to a file"
+          onClick={exportPresets}
+          disabled={!customs.length}
+        >
+          ↧ export
+        </button>
+        <button
+          className="io-btn"
+          title="import presets from a file"
+          onClick={() => fileRef.current?.click()}
+        >
+          ↥ import
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) importPresets(f);
+            e.target.value = "";
+          }}
+        />
       </div>
 
       <div className="share-row">
