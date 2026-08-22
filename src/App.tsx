@@ -227,6 +227,30 @@ export default function App() {
     engineRef.current?.setDistType(type);
   }
 
+  function randomTone() {
+    const ri = (a: number, b: number) => Math.round(a + Math.random() * (b - a));
+    const rf = (a: number, b: number) =>
+      +(a + Math.random() * (b - a)).toFixed(2);
+    const dists: DistType[] = ["soft", "hard", "fuzz"];
+    const nt: Tone = {
+      drive: rf(0.1, 0.85),
+      low: ri(-8, 8),
+      mid: ri(-8, 8),
+      high: ri(-8, 8),
+      delayMix: rf(0, 0.35),
+      delayTime: rf(0.12, 0.5),
+      delayFb: rf(0.1, 0.5),
+      reverb: rf(0, 0.4),
+      gate: 0,
+      cab: Math.random() < 0.5,
+      dist: dists[Math.floor(Math.random() * dists.length)],
+      chorus: rf(0, 0.35),
+      comp: rf(0, 0.5),
+    };
+    setTone(nt);
+    if (engineRef.current) applyTone(engineRef.current, nt);
+  }
+
   function shareTone() {
     const label =
       artistId === "shared" && shared
@@ -506,6 +530,9 @@ export default function App() {
       <div className="share-row">
         <button className="share-btn" onClick={shareTone}>
           ⇄ share this tone
+        </button>
+        <button className="share-btn" onClick={randomTone}>
+          🎲 random
         </button>
         {shareMsg && <span className="share-msg">{shareMsg}</span>}
       </div>
