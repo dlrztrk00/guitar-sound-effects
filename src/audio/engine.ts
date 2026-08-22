@@ -97,6 +97,12 @@ export class PedalEngine {
   private cabDry: GainNode;
   private cabOut: GainNode;
 
+  // chorus (LFO-modulated short delay)
+  private chorusDelay: DelayNode;
+  private chorusLFO: OscillatorNode;
+  private chorusDepth: GainNode;
+  private chorusMix: GainNode;
+
   private wetGain: GainNode;
   private dryGain: GainNode;
   private master: GainNode;
@@ -181,6 +187,19 @@ export class PedalEngine {
     this.cabDry.gain.value = 1;
     this.cabOut = this.ctx.createGain();
 
+    // --- chorus: a short delay whose time wobbles under an LFO ---
+    this.chorusDelay = this.ctx.createDelay(0.05);
+    this.chorusDelay.delayTime.value = 0.025;
+    this.chorusLFO = this.ctx.createOscillator();
+    this.chorusLFO.frequency.value = 0.8;
+    this.chorusDepth = this.ctx.createGain();
+    this.chorusDepth.gain.value = 0.003;
+    this.chorusMix = this.ctx.createGain();
+    this.chorusMix.gain.value = 0; // off by default
+    this.chorusLFO.connect(this.chorusDepth);
+    this.chorusDepth.connect(this.chorusDelay.delayTime);
+    this.chorusLFO.start();
+
     // --- mix / bypass / output ---
     this.wetGain = this.ctx.createGain();
     this.dryGain = this.ctx.createGain();
@@ -251,6 +270,11 @@ export class PedalEngine {
     high.connect(this.cabDry);
     this.cabDry.connect(this.cabOut);
     this.cabOut.connect(this.wetGain);
+
+    // chorus send off the cab output
+    this.cabOut.connect(this.chorusDelay);
+    this.chorusDelay.connect(this.chorusMix);
+    this.chorusMix.connect(this.wetGain);
 
     // delay send off the cab output, with a feedback loop
     this.cabOut.connect(this.delay);
@@ -389,6 +413,11 @@ export class PedalEngine {
   setGate(v: number): void {
     const x = Math.max(0, Math.min(1, v));
     this.gateThreshold = x * x * 0.12; // squared for finer control down low
+  }
+
+  /** Chorus wet amount, 0..1. */
+  setChorus(v: number): void {
+    this.chorusMix.gain.value = Math.max(0, Math.min(1, v));
   }
 
   /** Cabinet / speaker sim on or off. */

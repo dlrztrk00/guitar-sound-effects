@@ -33,6 +33,7 @@ function applyTone(e: PedalEngine, t: Tone) {
   e.setGate(t.gate ?? 0);
   e.setCab(!!t.cab);
   e.setDistType(t.dist ?? "soft");
+  e.setChorus(t.chorus ?? 0);
 }
 
 export default function App() {
@@ -159,6 +160,7 @@ export default function App() {
     else if (k === "delayFb") e.setDelayFeedback(v);
     else if (k === "reverb") e.setReverbMix(v);
     else if (k === "gate") e.setGate(v);
+    else if (k === "chorus") e.setChorus(v);
   }
 
   function saveCurrent() {
@@ -408,6 +410,9 @@ export default function App() {
           <Knob label="REVERB" value={tone.reverb ?? 0} min={0} max={1} step={0.01}
             display={`${Math.round((tone.reverb ?? 0) * 100)}%`} accent={skin.accent}
             onChange={(v) => setToneVal("reverb", v)} />
+          <Knob label="CHORUS" value={tone.chorus ?? 0} min={0} max={1} step={0.01}
+            display={`${Math.round((tone.chorus ?? 0) * 100)}%`} accent={skin.accent}
+            onChange={(v) => setToneVal("chorus", v)} />
           <Knob label="LEVEL" value={level} min={0} max={1.2} step={0.01}
             display={`${Math.round(level * 100)}%`} accent={skin.accent}
             onChange={onLevel} />
