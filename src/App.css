@@ -14,14 +14,39 @@
 
 body {
   margin: 0;
-  background: radial-gradient(1000px 700px at 50% -10%, #14171c 0%, transparent 60%),
+  /* a dim rehearsal room: back wall fading to a warm wooden stage floor,
+     with a soft spotlight pooling where the amp stands */
+  background:
+    radial-gradient(760px 420px at 50% 34%, rgba(255, 226, 170, 0.10) 0%, transparent 62%),
+    linear-gradient(180deg, #0a0c10 0%, #0b0d10 52%, #14100c 62%, #1c150e 100%),
     #06080a;
+  background-attachment: fixed;
   color: var(--paper);
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
+/* floorboards across the lower half of the room */
+body::before {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48vh;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.28) 0 2px,
+      transparent 2px 46px
+    ),
+    linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.35) 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 40%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 40%);
+  opacity: 0.5;
+}
 
 .app {
-  max-width: 460px;
+  position: relative;
+  max-width: 480px;
   margin: 0 auto;
   padding: 2.5rem 1.25rem 4rem;
 }
@@ -194,29 +219,58 @@ header .sub {
 /* ── the rig: amp head + speaker cabinet + pedalboard ────────── */
 .rig {
   position: relative;
+  margin-top: 1.75rem;
+  z-index: 1;
 }
 
 /* ── amp head ── */
 .amp {
   position: relative;
-  border-radius: 14px 14px 6px 6px;
-  padding: 1.1rem 1.2rem 1.3rem;
-  border: 1px solid rgba(0, 0, 0, 0.6);
-  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.9),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -3px 10px rgba(0, 0, 0, 0.5);
-  /* faint tolex grain over the artist chassis colour */
+  margin: 0 6px;
+  border-radius: 16px 16px 5px 5px;
+  padding: 1.7rem 1.2rem 1.3rem;
+  border: 1px solid rgba(0, 0, 0, 0.65);
+  box-shadow: 0 18px 34px -20px rgba(0, 0, 0, 0.95),
+    inset 0 2px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -4px 12px rgba(0, 0, 0, 0.55),
+    inset 3px 0 6px rgba(0, 0, 0, 0.3),
+    inset -3px 0 6px rgba(0, 0, 0, 0.3);
+  /* stitched-leather tolex grain over the artist chassis colour */
   background-image: repeating-linear-gradient(
       45deg,
-      rgba(255, 255, 255, 0.02) 0 2px,
-      transparent 2px 4px
+      rgba(255, 255, 255, 0.025) 0 1px,
+      transparent 1px 3px
     ),
     repeating-linear-gradient(
       -45deg,
-      rgba(0, 0, 0, 0.06) 0 2px,
-      transparent 2px 4px
-    );
+      rgba(0, 0, 0, 0.09) 0 1px,
+      transparent 1px 3px
+    ),
+    radial-gradient(140% 120% at 50% 0%, rgba(255, 255, 255, 0.06), transparent 55%);
   transition: background 0.35s ease;
+}
+/* leather carry handle on top of the head */
+.amp-handle {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 88px;
+  height: 16px;
+  border-radius: 10px 10px 4px 4px;
+  background: linear-gradient(#2a2c31, #101115);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.18),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.6), 0 3px 5px -2px rgba(0, 0, 0, 0.7);
+}
+.amp-handle::after {
+  content: "";
+  position: absolute;
+  inset: 5px 10px auto;
+  height: 5px;
+  border-radius: 3px;
+  background: #05060a;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 /* metal corner protectors */
@@ -335,74 +389,167 @@ header .sub {
   background: color-mix(in oklab, var(--accent) 16%, transparent);
 }
 
-/* ── speaker cabinet ── */
+/* ── 4x12 speaker cabinet ── */
 .cab {
   position: relative;
-  margin-top: -2px;
-  height: 150px;
-  border-radius: 4px 4px 16px 16px;
-  border: 1px solid rgba(0, 0, 0, 0.65);
-  overflow: hidden;
-  box-shadow: 0 24px 44px -22px rgba(0, 0, 0, 0.95),
-    inset 0 2px 6px rgba(0, 0, 0, 0.5);
+  margin: -3px 0 0;
+  height: 232px;
+  border-radius: 5px 5px 14px 14px;
+  /* the cabinet's own black tolex frame around the grille */
+  padding: 12px;
+  background: linear-gradient(#181a1e, #0b0c0f);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  box-shadow: 0 26px 46px -20px rgba(0, 0, 0, 0.95),
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -4px 12px rgba(0, 0, 0, 0.6);
+}
+/* grounding contact shadow so the stack sits ON the floor */
+.cab::before {
+  content: "";
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: -26px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(50% 100% at 50% 0%, rgba(0, 0, 0, 0.6), transparent 72%);
+  filter: blur(3px);
+  z-index: -1;
 }
 .grille {
   position: absolute;
-  inset: 0;
+  inset: 12px;
+  border-radius: 3px;
+  /* recessed baffle: a piping frame + inner shadow around the cloth */
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.75),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.05),
+    inset 0 6px 18px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
 }
-/* woven grille cloth over the artist art */
+/* fine woven grille cloth over the artist art */
 .grille::after {
   content: "";
   position: absolute;
   inset: 0;
   background: repeating-linear-gradient(
       45deg,
-      rgba(0, 0, 0, 0.28) 0 2px,
-      transparent 2px 5px
+      rgba(0, 0, 0, 0.22) 0 1px,
+      transparent 1px 4px
     ),
     repeating-linear-gradient(
       -45deg,
-      rgba(0, 0, 0, 0.28) 0 2px,
-      transparent 2px 5px
+      rgba(0, 0, 0, 0.22) 0 1px,
+      transparent 1px 4px
     ),
-    radial-gradient(120% 130% at 50% 0%, transparent 45%, rgba(0, 0, 0, 0.55) 100%);
+    radial-gradient(130% 120% at 50% 0%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
 }
+/* the four 12" speakers, seen faintly through the cloth (2x2) */
+.cones {
+  position: absolute;
+  inset: 12px;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  place-items: center;
+  padding: 6px;
+  pointer-events: none;
+}
+.cone {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  /* surround ring → cone → dust cap, all as soft shadows so the art bleeds through */
+  background: radial-gradient(
+    circle at 50% 46%,
+    rgba(0, 0, 0, 0.45) 0 14%,
+    rgba(0, 0, 0, 0.12) 15% 22%,
+    transparent 24% 40%,
+    rgba(0, 0, 0, 0.30) 44% 50%,
+    rgba(0, 0, 0, 0.10) 52% 58%,
+    transparent 60%
+  );
+  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.06);
+}
+/* metal corner protectors on the cab */
+.cab-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  z-index: 2;
+  background: linear-gradient(135deg, #9498a1, #26282d 72%);
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.7), 0 1px 1px rgba(255, 255, 255, 0.12);
+}
+.cab-corner.tl { top: 3px; left: 3px; border-radius: 6px 0 60% 0; }
+.cab-corner.tr { top: 3px; right: 3px; border-radius: 0 6px 0 60%; }
+.cab-corner.bl { bottom: 3px; left: 3px; border-radius: 0 60% 0 12px; }
+.cab-corner.br { bottom: 3px; right: 3px; border-radius: 60% 0 12px 0; }
 .cab-badge {
   position: absolute;
-  bottom: 8px;
-  right: 12px;
-  z-index: 1;
-  font-size: 0.62rem;
-  letter-spacing: 0.22em;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 3px 12px;
+  border-radius: 4px;
+  background: rgba(6, 8, 10, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 0.6rem;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(2px);
 }
 
-/* ── pedalboard ── */
+/* ── pedalboard: an angled aluminium pedaltrain ── */
 .board {
   position: relative;
-  margin-top: 0.9rem;
-  border-radius: 12px;
-  padding: 1.5rem 1.2rem 1.3rem;
+  margin-top: 2.4rem;
+  border-radius: 10px;
+  padding: 1.9rem 1.4rem 1.4rem;
   color: #c6ccd4;
-  background: linear-gradient(#1b1d18, #0e0f0c),
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.02) 0 3px,
-      transparent 3px 7px
+  /* brushed aluminium slats running across the board */
+  background: repeating-linear-gradient(
+      180deg,
+      #34383f 0 9px,
+      #2a2d33 9px 12px,
+      #23262b 12px 21px,
+      #191b1f 21px 24px
     );
-  border: 1px solid rgba(0, 0, 0, 0.6);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -3px 12px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  box-shadow: 0 20px 34px -22px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -4px 12px rgba(0, 0, 0, 0.55);
+}
+/* raised front & back rails of the pedaltrain */
+.board::before,
+.board::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(#3d424a, #1a1c20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.board::before {
+  top: 0;
+  border-radius: 10px 10px 0 0;
+}
+.board::after {
+  bottom: 0;
+  border-radius: 0 0 10px 10px;
 }
 .board-label {
   position: absolute;
-  top: 0.5rem;
-  left: 0.9rem;
-  font-size: 0.6rem;
-  letter-spacing: 0.3em;
-  color: rgba(255, 255, 255, 0.28);
+  top: 0.55rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  font-size: 0.58rem;
+  letter-spacing: 0.34em;
+  color: rgba(255, 255, 255, 0.4);
 }
 .screen {
   border-radius: 7px;

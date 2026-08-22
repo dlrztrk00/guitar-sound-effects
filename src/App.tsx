@@ -445,6 +445,7 @@ export default function App() {
       >
         {/* ── amp head ── */}
         <div className="amp" style={{ background: skin.chassis }}>
+          <span className="amp-handle" />
           <span className="corner tl" />
           <span className="corner tr" />
           <span className="corner bl" />
@@ -514,9 +515,19 @@ export default function App() {
           </div>
         </div>
 
-        {/* ── speaker cabinet (shows the artist art through the grille) ── */}
+        {/* ── 4x12 speaker cabinet (artist art shows through the grille) ── */}
         <div className="cab">
           <div className="grille" style={{ background: faceBg }} />
+          <div className="cones">
+            <span className="cone" />
+            <span className="cone" />
+            <span className="cone" />
+            <span className="cone" />
+          </div>
+          <span className="cab-corner tl" />
+          <span className="cab-corner tr" />
+          <span className="cab-corner bl" />
+          <span className="cab-corner br" />
           <div className="cab-badge">{artist.name}</div>
         </div>
 
