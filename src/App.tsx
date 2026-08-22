@@ -11,6 +11,8 @@ import {
   SAVED_SKIN,
   loadCustoms,
   saveCustoms,
+  encodeTone,
+  sharedFromHash,
   type Tone,
   type Artist,
   type Custom,
@@ -32,14 +34,17 @@ function applyTone(e: PedalEngine, t: Tone) {
 }
 
 export default function App() {
+  const initShared = sharedFromHash();
   const engineRef = useRef<PedalEngine | null>(null);
   const [running, setRunning] = useState(false);
   const [bypassed, setBypassed] = useState(false);
-  const [artistId, setArtistId] = useState(DEFAULT_ARTIST);
-  const [songId, setSongId] = useState(DEFAULT_SONG);
+  const [artistId, setArtistId] = useState(initShared ? "shared" : DEFAULT_ARTIST);
+  const [songId, setSongId] = useState(initShared ? "shared" : DEFAULT_SONG);
   const [tone, setTone] = useState<Tone>(
-    () => ARTISTS.find((a) => a.id === DEFAULT_ARTIST)!.songs[0].tone
+    () => initShared?.tone ?? ARTISTS.find((a) => a.id === DEFAULT_ARTIST)!.songs[0].tone
   );
+  const [shared] = useState(() => initShared);
+  const [shareMsg, setShareMsg] = useState("");
   const [customs, setCustoms] = useState<Custom[]>(() => loadCustoms());
   const [presetName, setPresetName] = useState("");
   const [level, setLevel] = useState(0.9);
@@ -58,7 +63,19 @@ export default function App() {
     skin: SAVED_SKIN,
     songs: customs.map((c) => ({ id: c.id, name: c.name, tone: c.tone })),
   };
-  const allArtists = customs.length ? [...ARTISTS, savedArtist] : ARTISTS;
+  const sharedArtist: Artist | null = shared
+    ? {
+        id: "shared",
+        name: "⇄ Shared",
+        skin: shared.skin,
+        songs: [{ id: "shared", name: shared.name, tone: shared.tone }],
+      }
+    : null;
+  const allArtists = [
+    ...ARTISTS,
+    ...(customs.length ? [savedArtist] : []),
+    ...(sharedArtist ? [sharedArtist] : []),
+  ];
   const artist = allArtists.find((a) => a.id === artistId) ?? ARTISTS[0];
   const song = artist.songs.find((s) => s.id === songId) ?? artist.songs[0];
   const activeCustom =
@@ -96,6 +113,14 @@ export default function App() {
   }
 
   function selectArtist(id: string) {
+    if (id === "shared") {
+      if (!shared) return;
+      setArtistId("shared");
+      setSongId("shared");
+      setTone(shared.tone);
+      if (engineRef.current) applyTone(engineRef.current, shared.tone);
+      return;
+    }
     if (id === "saved") {
       if (!customs.length) return;
       const c = customs[0];
@@ -173,6 +198,29 @@ export default function App() {
     engineRef.current?.setCab(next);
   }
 
+  function shareTone() {
+    const label =
+      artistId === "shared" && shared
+        ? shared.name
+        : activeCustom
+          ? activeCustom.name
+          : `${artist.name} — ${song.name}`;
+    const code = encodeTone(label, skin, tone);
+    const url = `${location.origin}${location.pathname}#t=${code}`;
+    const flash = (m: string) => {
+      setShareMsg(m);
+      setTimeout(() => setShareMsg(""), 2500);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => flash("link copied!"),
+        () => flash("couldn't copy — check the address bar")
+      );
+    } else {
+      flash("copy not supported here");
+    }
+  }
+
   async function onDevice(id: string) {
     setDeviceId(id);
     await engineRef.current?.setDevice(id);
@@ -239,9 +287,18 @@ export default function App() {
   }
 
   const on = running && !bypassed;
-  const faceName = activeCustom ? activeCustom.name : artist.name;
+  const faceName =
+    artistId === "shared" && shared
+      ? shared.name
+      : activeCustom
+        ? activeCustom.name
+        : artist.name;
   const faceTag =
-    artistId === "saved" ? "★ your preset" : `♪ ${song.name}`;
+    artistId === "saved"
+      ? "★ your preset"
+      : artistId === "shared"
+        ? "⇄ shared tone"
+        : `♪ ${song.name}`;
 
   return (
     <div className="app">
@@ -392,6 +449,13 @@ export default function App() {
             ✕
           </button>
         )}
+      </div>
+
+      <div className="share-row">
+        <button className="share-btn" onClick={shareTone}>
+          ⇄ share this tone
+        </button>
+        {shareMsg && <span className="share-msg">{shareMsg}</span>}
       </div>
 
       {/* rack — utility gear around the pedal */}

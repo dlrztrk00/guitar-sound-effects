@@ -144,6 +144,32 @@ header .sub {
   cursor: pointer;
 }
 
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+.share-btn {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.share-btn:hover {
+  color: var(--paper);
+  border-color: var(--muted);
+}
+.share-msg {
+  font-size: 0.78rem;
+  color: var(--green);
+}
+
 /* ── the pedal (a metal enclosure) ───────────────────────────── */
 .pedal {
   position: relative;

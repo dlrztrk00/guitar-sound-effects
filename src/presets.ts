@@ -141,6 +141,40 @@ export function saveCustoms(list: Custom[]): void {
   }
 }
 
+// ── shareable tone links ────────────────────────────────────────
+export type Shared = { name: string; skin: Skin; tone: Tone };
+
+function b64urlEncode(s: string): string {
+  return btoa(unescape(encodeURIComponent(s)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+function b64urlDecode(s: string): string {
+  const b = s.replace(/-/g, "+").replace(/_/g, "/");
+  return decodeURIComponent(escape(atob(b)));
+}
+
+export function encodeTone(name: string, skin: Skin, tone: Tone): string {
+  return b64urlEncode(JSON.stringify({ n: name, s: skin, t: tone }));
+}
+
+export function decodeTone(code: string): Shared | null {
+  try {
+    const p = JSON.parse(b64urlDecode(code));
+    if (!p || !p.t || !p.s) return null;
+    return { name: p.n ?? "Shared tone", skin: p.s as Skin, tone: p.t as Tone };
+  } catch {
+    return null;
+  }
+}
+
+export function sharedFromHash(): Shared | null {
+  if (typeof location === "undefined") return null;
+  const m = location.hash.match(/[#&]t=([^&]+)/);
+  return m ? decodeTone(m[1]) : null;
+}
+
 export const SAVED_SKIN: Skin = {
   chassis: "linear-gradient(#26262c, #141419)",
   faceplate: "radial-gradient(130% 110% at 50% -10%, #2b2b33, #121216)",
