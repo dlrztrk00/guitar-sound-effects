@@ -279,6 +279,66 @@ header .sub {
   background: transparent;
 }
 
+/* tuner readout (lives in the screen) */
+.tuner {
+  height: 86px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  color: #7fe08a;
+}
+.tuner-note {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: #d6ffd9;
+  text-shadow: 0 0 8px rgba(127, 224, 138, 0.5);
+}
+.tuner-note.in {
+  color: #7fe08a;
+  text-shadow: 0 0 12px #7fe08a;
+}
+.tuner-bar {
+  position: relative;
+  width: 82%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(127, 224, 138, 0.12);
+}
+.tuner-center {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  width: 2px;
+  height: 10px;
+  background: rgba(127, 224, 138, 0.5);
+  transform: translateX(-50%);
+}
+.tuner-needle {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: #e8b64c;
+  box-shadow: 0 0 8px #e8b64c;
+  transform: translateX(-50%);
+  transition: left 0.08s linear;
+}
+.tuner-needle.in {
+  background: #7fe08a;
+  box-shadow: 0 0 10px #7fe08a;
+}
+.tuner-cents {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: rgba(127, 224, 138, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── knob deck ───────────────────────────────────────────────── */
 .deck {
   display: flex;

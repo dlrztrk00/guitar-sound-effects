@@ -91,6 +91,7 @@ export class PedalEngine {
 
   analyser: AnalyserNode; // output spectrum
   inputAnalyser: AnalyserNode; // input level meter
+  tunerAnalyser: AnalyserNode; // larger window for pitch detection
 
   private drive = 0.5;
   bypassed = false;
@@ -105,6 +106,11 @@ export class PedalEngine {
     this.inputAnalyser.fftSize = 256;
     this.inputAnalyser.smoothingTimeConstant = 0.3;
     this.inputGain.connect(this.inputAnalyser);
+
+    // a larger, un-smoothed window for the tuner's pitch detection
+    this.tunerAnalyser = this.ctx.createAnalyser();
+    this.tunerAnalyser.fftSize = 2048;
+    this.inputGain.connect(this.tunerAnalyser);
 
     // --- distortion ---
     this.shaper = this.ctx.createWaveShaper();

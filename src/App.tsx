@@ -3,6 +3,7 @@ import { PedalEngine } from "./audio/engine";
 import { Spectrum } from "./Spectrum";
 import { Meter } from "./Meter";
 import { Knob } from "./Knob";
+import { Tuner } from "./Tuner";
 import {
   ARTISTS,
   DEFAULT_ARTIST,
@@ -42,6 +43,7 @@ export default function App() {
   const [customs, setCustoms] = useState<Custom[]>(() => loadCustoms());
   const [presetName, setPresetName] = useState("");
   const [level, setLevel] = useState(0.9);
+  const [tunerOn, setTunerOn] = useState(false);
   const [input, setInput] = useState<0 | 1>(0);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
@@ -303,7 +305,14 @@ export default function App() {
           </div>
           <p className="preset-tag">{faceTag}</p>
           <div className="screen">
-            <Spectrum analyser={running ? engineRef.current!.analyser : null} />
+            {running && tunerOn ? (
+              <Tuner
+                analyser={engineRef.current!.tunerAnalyser}
+                sampleRate={engineRef.current!.ctx.sampleRate}
+              />
+            ) : (
+              <Spectrum analyser={running ? engineRef.current!.analyser : null} />
+            )}
           </div>
         </div>
 
@@ -348,6 +357,14 @@ export default function App() {
             onClick={toggleCab}
           >
             CAB SIM
+          </button>
+          <button
+            className={`toggle ${tunerOn ? "on" : ""}`}
+            style={{ ["--accent" as string]: skin.accent }}
+            onClick={() => setTunerOn((v) => !v)}
+            disabled={!running}
+          >
+            TUNER
           </button>
         </div>
 
