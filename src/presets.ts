@@ -10,6 +10,7 @@ export type Tone = {
   delayFb: number; // 0..0.9
   reverb?: number; // 0..1 (defaults to 0)
   gate?: number; // 0..1 (defaults to 0)
+  cab?: boolean; // cabinet/speaker sim (defaults to off)
 };
 
 export type Skin = {
@@ -26,8 +27,9 @@ export type Artist = { id: string; name: string; skin: Skin; songs: Song[] };
 
 const t = (
   drive: number, low: number, mid: number, high: number,
-  delayMix: number, delayTime: number, delayFb: number, reverb = 0, gate = 0
-): Tone => ({ drive, low, mid, high, delayMix, delayTime, delayFb, reverb, gate });
+  delayMix: number, delayTime: number, delayFb: number,
+  reverb = 0, gate = 0, cab = false
+): Tone => ({ drive, low, mid, high, delayMix, delayTime, delayFb, reverb, gate, cab });
 
 export const ARTISTS: Artist[] = [
   {

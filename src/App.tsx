@@ -27,6 +27,7 @@ function applyTone(e: PedalEngine, t: Tone) {
   e.setDelayFeedback(t.delayFb);
   e.setReverbMix(t.reverb ?? 0);
   e.setGate(t.gate ?? 0);
+  e.setCab(!!t.cab);
 }
 
 export default function App() {
@@ -162,6 +163,12 @@ export default function App() {
   function onLevel(v: number) {
     setLevel(v);
     engineRef.current?.setLevel(v);
+  }
+
+  function toggleCab() {
+    const next = !(tone.cab ?? false);
+    setTone((prev) => ({ ...prev, cab: next }));
+    engineRef.current?.setCab(next);
   }
 
   async function onDevice(id: string) {
@@ -331,6 +338,17 @@ export default function App() {
           <Knob label="LEVEL" value={level} min={0} max={1.2} step={0.01}
             display={`${Math.round(level * 100)}%`} accent={skin.accent}
             onChange={onLevel} />
+        </div>
+
+        {/* effect toggles */}
+        <div className="toggles">
+          <button
+            className={`toggle ${tone.cab ? "on" : ""}`}
+            style={{ ["--accent" as string]: skin.accent }}
+            onClick={toggleCab}
+          >
+            CAB SIM
+          </button>
         </div>
 
         <button className={`stomp ${on ? "lit" : ""}`} onClick={toggleBypass} disabled={!running}>

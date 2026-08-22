@@ -361,6 +361,35 @@ header .sub {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── effect toggles ──────────────────────────────────────────── */
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.3rem 0 0.2rem;
+}
+.toggle {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+  opacity: 0.75;
+  font-family: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle.on {
+  opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  box-shadow: 0 0 12px -3px var(--accent);
+}
+
 /* ── footswitch ──────────────────────────────────────────────── */
 .stomp {
   width: 100%;

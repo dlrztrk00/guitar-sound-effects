@@ -72,6 +72,14 @@ export class PedalEngine {
   private reverb: ConvolverNode;
   private reverbGain: GainNode;
 
+  // cabinet / speaker sim (switchable)
+  private cabHP: BiquadFilterNode;
+  private cabLP: BiquadFilterNode;
+  private cabDip: BiquadFilterNode;
+  private cabWet: GainNode;
+  private cabDry: GainNode;
+  private cabOut: GainNode;
+
   private wetGain: GainNode;
   private dryGain: GainNode;
   private master: GainNode;
@@ -129,6 +137,25 @@ export class PedalEngine {
     this.reverb.buffer = makeReverbIR(this.ctx, 2.4, 3.0);
     this.reverbGain = this.ctx.createGain();
     this.reverbGain.gain.value = 0; // off by default
+
+    // --- cabinet / speaker sim (switchable) ---
+    // rolls off fizzy highs and boomy lows like a real guitar speaker
+    this.cabHP = this.ctx.createBiquadFilter();
+    this.cabHP.type = "highpass";
+    this.cabHP.frequency.value = 85;
+    this.cabLP = this.ctx.createBiquadFilter();
+    this.cabLP.type = "lowpass";
+    this.cabLP.frequency.value = 4500;
+    this.cabDip = this.ctx.createBiquadFilter();
+    this.cabDip.type = "peaking";
+    this.cabDip.frequency.value = 2800;
+    this.cabDip.Q.value = 1.5;
+    this.cabDip.gain.value = -4; // tame harsh presence
+    this.cabWet = this.ctx.createGain();
+    this.cabWet.gain.value = 0; // cab off by default
+    this.cabDry = this.ctx.createGain();
+    this.cabDry.gain.value = 1;
+    this.cabOut = this.ctx.createGain();
 
     // --- mix / bypass / output ---
     this.wetGain = this.ctx.createGain();
@@ -190,10 +217,19 @@ export class PedalEngine {
     this.shaper.connect(low);
     low.connect(mid);
     mid.connect(high);
-    high.connect(this.wetGain);
 
-    // delay send off the end of the EQ, with a feedback loop
-    high.connect(this.delay);
+    // cabinet block: high → [wet: HP→LP→dip] / [dry] → cabOut
+    high.connect(this.cabHP);
+    this.cabHP.connect(this.cabLP);
+    this.cabLP.connect(this.cabDip);
+    this.cabDip.connect(this.cabWet);
+    this.cabWet.connect(this.cabOut);
+    high.connect(this.cabDry);
+    this.cabDry.connect(this.cabOut);
+    this.cabOut.connect(this.wetGain);
+
+    // delay send off the cab output, with a feedback loop
+    this.cabOut.connect(this.delay);
     this.delay.connect(this.delayFeedback);
     this.delayFeedback.connect(this.delay);
     this.delay.connect(this.delayMix);
@@ -323,6 +359,13 @@ export class PedalEngine {
   setGate(v: number): void {
     const x = Math.max(0, Math.min(1, v));
     this.gateThreshold = x * x * 0.12; // squared for finer control down low
+  }
+
+  /** Cabinet / speaker sim on or off. */
+  setCab(on: boolean): void {
+    const t = this.ctx.currentTime;
+    this.cabWet.gain.setTargetAtTime(on ? 1 : 0, t, 0.01);
+    this.cabDry.gain.setTargetAtTime(on ? 0 : 1, t, 0.01);
   }
 
   /** Start collecting raw PCM from the output (for MP3 encoding). */
