@@ -46,9 +46,9 @@ body::before {
 
 .app {
   position: relative;
-  max-width: 1060px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 1.6rem 1.25rem 2.5rem;
+  padding: 1.6rem 1.5rem 2.5rem;
 }
 
 header h1 {
@@ -222,7 +222,7 @@ header .sub {
   z-index: 1;
   margin-top: 1rem;
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(420px, 480px) minmax(0, 1fr);
   gap: 1.6rem;
   align-items: start;
 }
@@ -247,7 +247,7 @@ header .sub {
     gap: 1rem;
   }
   .stack {
-    max-width: 420px;
+    max-width: 460px;
     margin: 0 auto;
   }
 }
@@ -387,13 +387,16 @@ header .sub {
   text-overflow: ellipsis;
 }
 
-/* amp knobs sit on the metal panel — light labels, compact 3×2 grid */
+/* amp knobs sit on the metal panel — one wide row, like a real amp head */
 .amp-knobs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  justify-items: center;
-  gap: 0.7rem 0.3rem;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 0.2rem;
   margin: 0.9rem 0 0.4rem;
+}
+.amp-knobs .knob {
+  width: 62px;
 }
 .amp-knobs .knob-label,
 .board .knob-label {
@@ -422,7 +425,7 @@ header .sub {
 .cab {
   position: relative;
   margin: -3px 0 0;
-  height: 188px;
+  height: 210px;
   border-radius: 5px 5px 14px 14px;
   /* the cabinet's own black tolex frame around the grille */
   padding: 12px;
@@ -485,8 +488,8 @@ header .sub {
   pointer-events: none;
 }
 .cone {
-  width: 68px;
-  height: 68px;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   /* surround ring → cone → dust cap, all as soft shadows so the art bleeds through */
   background: radial-gradient(
