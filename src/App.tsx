@@ -430,18 +430,22 @@ export default function App() {
         <p className="sub">a guitar pedal, coded — Web Audio</p>
       </header>
 
-      {/* artist selector */}
-      <div className="presets">
-        {allArtists.map((a) => (
-          <button
-            key={a.id}
-            className={`preset ${a.id === artistId ? "sel" : ""}`}
-            style={{ ["--accent" as string]: a.skin.accent }}
-            onClick={() => selectArtist(a.id)}
+      {/* artist selector — a single dropdown */}
+      <div className="picker">
+        <label className="pick" style={{ ["--accent" as string]: skin.accent }}>
+          <span className="pick-label">ARTIST</span>
+          <select
+            className="artist-select"
+            value={artistId}
+            onChange={(e) => selectArtist(e.target.value)}
           >
-            {a.name}
-          </button>
-        ))}
+            {allArtists.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* song selector (or saved presets) */}
