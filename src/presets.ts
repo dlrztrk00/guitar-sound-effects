@@ -148,6 +148,8 @@ export const ARTISTS: Artist[] = [
     skin: {
       chassis: "linear-gradient(#2a1414, #150807)",
       faceplate: "radial-gradient(130% 110% at 50% -10%, #5a1c18, #1a0807)",
+      image: "presets/fender.jpg",
+      imagePos: "center 32%",
       accent: "#d94a3f",
       ink: "#f2d9d3",
     },
@@ -158,6 +160,26 @@ export const ARTISTS: Artist[] = [
       { id: "will-we-talk", name: "Will We Talk?", tone: t(0.4, -1, 2, 5, 0.06, 0.22, 0.2, 0.16) },
       { id: "getting-started", name: "Getting Started", tone: t(0.48, 1, 3, 2, 0.08, 0.26, 0.24, 0.18) },
       { id: "the-borders", name: "The Borders", tone: t(0.38, 1, 1, 3, 0.16, 0.36, 0.34, 0.28) },
+    ],
+  },
+  {
+    id: "5sos",
+    name: "5 Seconds of Summer",
+    skin: {
+      chassis: "linear-gradient(#141a1a, #080b0b)",
+      faceplate: "radial-gradient(130% 110% at 50% -10%, #16302c, #070d0c)",
+      image: "presets/5sos.jpg",
+      imagePos: "center 38%",
+      accent: "#4fb0a0",
+      ink: "#dcefe9",
+    },
+    // punchy pop-punk power chords — bright, crunchy, cab-driven
+    songs: [
+      { id: "slsp", name: "She Looks So Perfect", tone: t(0.6, 2, 1, 3, 0.05, 0.2, 0.15, 0.12, 0, true) },
+      { id: "youngblood", name: "Youngblood", tone: t(0.5, 3, 2, 1, 0.06, 0.22, 0.18, 0.1, 0, true) },
+      { id: "shes-kinda-hot", name: "She's Kinda Hot", tone: { ...t(0.68, 2, 2, 3, 0.04, 0.2, 0.12, 0.1, 0, true), dist: "hard" } },
+      { id: "jet-black-heart", name: "Jet Black Heart", tone: t(0.55, 2, 1, 2, 0.1, 0.28, 0.25, 0.24, 0, true) },
+      { id: "dont-stop", name: "Don't Stop", tone: t(0.58, 1, 2, 3, 0.05, 0.2, 0.15, 0.12, 0, true) },
     ],
   },
 ];
