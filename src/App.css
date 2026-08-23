@@ -46,13 +46,13 @@ body::before {
 
 .app {
   position: relative;
-  max-width: 480px;
+  max-width: 1060px;
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 4rem;
+  padding: 1.6rem 1.25rem 2.5rem;
 }
 
 header h1 {
-  font-size: 2.4rem;
+  font-size: 1.9rem;
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -216,11 +216,40 @@ header .sub {
   color: var(--green);
 }
 
-/* ── the rig: amp head + speaker cabinet + pedalboard ────────── */
+/* ── the rig: amp stack beside the pedalboard controls ───────── */
 .rig {
   position: relative;
-  margin-top: 1.75rem;
   z-index: 1;
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: 1.6rem;
+  align-items: start;
+}
+.stack {
+  position: relative;
+}
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-width: 0;
+}
+.controls .save-row,
+.controls .share-row,
+.controls .rack {
+  margin-top: 0;
+}
+/* on a narrow screen (iPad portrait / phone) drop to one column */
+@media (max-width: 880px) {
+  .rig {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .stack {
+    max-width: 420px;
+    margin: 0 auto;
+  }
 }
 
 /* ── amp head ── */
@@ -358,13 +387,13 @@ header .sub {
   text-overflow: ellipsis;
 }
 
-/* amp knobs sit on the metal panel — light labels */
+/* amp knobs sit on the metal panel — light labels, compact 3×2 grid */
 .amp-knobs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.9rem 0.6rem;
-  margin: 1rem 0 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  justify-items: center;
+  gap: 0.7rem 0.3rem;
+  margin: 0.9rem 0 0.4rem;
 }
 .amp-knobs .knob-label,
 .board .knob-label {
@@ -393,7 +422,7 @@ header .sub {
 .cab {
   position: relative;
   margin: -3px 0 0;
-  height: 232px;
+  height: 188px;
   border-radius: 5px 5px 14px 14px;
   /* the cabinet's own black tolex frame around the grille */
   padding: 12px;
@@ -456,8 +485,8 @@ header .sub {
   pointer-events: none;
 }
 .cone {
-  width: 82px;
-  height: 82px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   /* surround ring → cone → dust cap, all as soft shadows so the art bleeds through */
   background: radial-gradient(
@@ -502,13 +531,10 @@ header .sub {
   backdrop-filter: blur(2px);
 }
 
-/* ── pedalboard: an angled aluminium pedaltrain, wider than the amp ── */
+/* ── pedalboard: an angled aluminium pedaltrain (fills its column) ── */
 .board {
   position: relative;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(640px, calc(100vw - 1.5rem));
-  margin-top: 2.4rem;
+  width: 100%;
   border-radius: 10px;
   padding: 1.9rem 1.4rem 1.4rem;
   color: #c6ccd4;

@@ -468,6 +468,7 @@ export default function App() {
           ["--ink" as string]: skin.ink,
         }}
       >
+        <div className="stack">
         {/* ── amp head ── */}
         <div className="amp" style={{ background: skin.chassis }}>
           <span className="amp-handle" />
@@ -555,8 +556,10 @@ export default function App() {
           <span className="cab-corner br" />
           <div className="cab-badge">{artist.name}</div>
         </div>
+        </div>{/* end stack */}
 
-        {/* ── pedalboard (step 2 splits these into individual pedals) ── */}
+        <div className="controls">
+        {/* ── pedalboard ── */}
         <div className="board">
           <div className="board-label">PEDALBOARD</div>
           <div className="pedals">
@@ -662,7 +665,6 @@ export default function App() {
             {bypassed ? "BYPASS — all off" : "RIG ON"}
           </button>
         </div>
-      </div>
 
       {/* save the current tone as a preset */}
       <div className="save-row">
@@ -772,6 +774,8 @@ export default function App() {
           )}
         </div>
       </div>
+      </div>{/* end controls */}
+      </div>{/* end rig */}
 
       {error && <p className="error">{error}</p>}
 
