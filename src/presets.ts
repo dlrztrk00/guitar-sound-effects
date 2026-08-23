@@ -119,6 +119,23 @@ export const ARTISTS: Artist[] = [
       { id: "seven", name: "7", tone: t(0.5, 1, 3, 3, 0.1, 0.28, 0.22) },
     ],
   },
+  {
+    id: "fike",
+    name: "Dominic Fike",
+    skin: {
+      chassis: "linear-gradient(#2a1c12, #150c07)",
+      faceplate: "radial-gradient(130% 110% at 50% -10%, #5a3418, #1c1008)",
+      accent: "#e69a3c",
+      ink: "#f2e2cf",
+    },
+    // clean, bright, jangly bedroom-pop — lots of chorus shimmer & light echo
+    songs: [
+      { id: "3-nights", name: "3 Nights", tone: t(0.18, -1, 1, 4, 0.12, 0.28, 0.25, 0.22, 0, false, 0.3, 0.25) },
+      { id: "chicken-tenders", name: "Chicken Tenders", tone: t(0.15, -2, 2, 5, 0.08, 0.22, 0.15, 0.14, 0, false, 0.18, 0.4) },
+      { id: "babydoll", name: "Babydoll", tone: t(0.34, 2, 2, 1, 0.1, 0.3, 0.25, 0.3, 0, false, 0.2, 0.2) },
+      { id: "phone-numbers", name: "Phone Numbers", tone: t(0.2, 0, 1, 3, 0.16, 0.34, 0.3, 0.28, 0, false, 0.35, 0.2) },
+    ],
+  },
 ];
 
 export const DEFAULT_ARTIST = "clean";
