@@ -142,6 +142,24 @@ export const ARTISTS: Artist[] = [
       { id: "4x4", name: "4x4", tone: t(0.16, -1, 2, 5, 0.08, 0.24, 0.18, 0.16, 0, false, 0.22, 0.35) },
     ],
   },
+  {
+    id: "fender",
+    name: "Sam Fender",
+    skin: {
+      chassis: "linear-gradient(#2a1414, #150807)",
+      faceplate: "radial-gradient(130% 110% at 50% -10%, #5a1c18, #1a0807)",
+      accent: "#d94a3f",
+      ink: "#f2d9d3",
+    },
+    // bright, driven heartland-rock Strat — chime, jangle & anthemic delay
+    songs: [
+      { id: "seventeen", name: "Seventeen Going Under", tone: t(0.42, 0, 2, 4, 0.1, 0.28, 0.28, 0.22) },
+      { id: "hypersonic", name: "Hypersonic Missiles", tone: t(0.5, 1, 2, 3, 0.08, 0.25, 0.22, 0.18) },
+      { id: "will-we-talk", name: "Will We Talk?", tone: t(0.4, -1, 2, 5, 0.06, 0.22, 0.2, 0.16) },
+      { id: "getting-started", name: "Getting Started", tone: t(0.48, 1, 3, 2, 0.08, 0.26, 0.24, 0.18) },
+      { id: "the-borders", name: "The Borders", tone: t(0.38, 1, 1, 3, 0.16, 0.36, 0.34, 0.28) },
+    ],
+  },
 ];
 
 export const DEFAULT_ARTIST = "clean";
