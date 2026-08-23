@@ -134,6 +134,10 @@ export const ARTISTS: Artist[] = [
       { id: "chicken-tenders", name: "Chicken Tenders", tone: t(0.15, -2, 2, 5, 0.08, 0.22, 0.15, 0.14, 0, false, 0.18, 0.4) },
       { id: "babydoll", name: "Babydoll", tone: t(0.34, 2, 2, 1, 0.1, 0.3, 0.25, 0.3, 0, false, 0.2, 0.2) },
       { id: "phone-numbers", name: "Phone Numbers", tone: t(0.2, 0, 1, 3, 0.16, 0.34, 0.3, 0.28, 0, false, 0.35, 0.2) },
+      { id: "westcoast-collective", name: "Westcoast Collective", tone: t(0.22, 1, 1, 3, 0.12, 0.3, 0.28, 0.26, 0, false, 0.3, 0.22) },
+      { id: "king-of-everything", name: "King of Everything", tone: t(0.4, 1, 3, 2, 0.1, 0.28, 0.25, 0.2, 0, false, 0.18, 0.2) },
+      { id: "misses", name: "Misses", tone: t(0.2, 2, 1, 1, 0.14, 0.34, 0.3, 0.34, 0, false, 0.28, 0.2) },
+      { id: "4x4", name: "4x4", tone: t(0.16, -1, 2, 5, 0.08, 0.24, 0.18, 0.16, 0, false, 0.22, 0.35) },
     ],
   },
 ];
