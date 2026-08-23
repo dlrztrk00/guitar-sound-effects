@@ -168,7 +168,7 @@ export const ARTISTS: Artist[] = [
     skin: {
       chassis: "linear-gradient(#141a1a, #080b0b)",
       faceplate: "radial-gradient(130% 110% at 50% -10%, #16302c, #070d0c)",
-      image: "presets/5sos.jpg",
+      image: "presets/5sos.jpg?v=2",
       imagePos: "center 38%",
       accent: "#4fb0a0",
       ink: "#dcefe9",
