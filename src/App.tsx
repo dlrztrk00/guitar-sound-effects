@@ -21,6 +21,38 @@ import { Mp3Encoder } from "@breezystack/lamejs";
 import type { DistType } from "./audio/engine";
 import "./App.css";
 
+// Write captured mono PCM as a 16-bit WAV (lossless — great for importing to a DAW).
+function encodeWav(chunks: Float32Array[], sampleRate: number): Blob {
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const buffer = new ArrayBuffer(44 + total * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+  };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + total * 2, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true); // PCM header size
+  view.setUint16(20, 1, true); // format = PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // byte rate
+  view.setUint16(32, 2, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
+  writeStr(36, "data");
+  view.setUint32(40, total * 2, true);
+  let off = 44;
+  for (const c of chunks) {
+    for (let i = 0; i < c.length; i++) {
+      const s = Math.max(-1, Math.min(1, c[i]));
+      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      off += 2;
+    }
+  }
+  return new Blob([view], { type: "audio/wav" });
+}
+
 function applyTone(e: PedalEngine, t: Tone) {
   e.setDrive(t.drive);
   e.setEq("low", t.low);
@@ -58,6 +90,7 @@ export default function App() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
   const [recording, setRecording] = useState(false);
+  const [recFormat, setRecFormat] = useState<"mp3" | "wav">("mp3");
   const [saving, setSaving] = useState(false);
   const [loopState, setLoopState] = useState<"idle" | "rec" | "play">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -377,30 +410,36 @@ export default function App() {
     setRecording(false);
     if (!chunks.length) return;
     setSaving(true);
+    const fmt = recFormat;
     setTimeout(() => {
-      const total = chunks.reduce((n, c) => n + c.length, 0);
-      const pcm = new Int16Array(total);
-      let off = 0;
-      for (const c of chunks) {
-        for (let i = 0; i < c.length; i++) {
-          const s = Math.max(-1, Math.min(1, c[i]));
-          pcm[off++] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      let blob: Blob;
+      if (fmt === "wav") {
+        blob = encodeWav(chunks, sampleRate);
+      } else {
+        const total = chunks.reduce((n, c) => n + c.length, 0);
+        const pcm = new Int16Array(total);
+        let off = 0;
+        for (const c of chunks) {
+          for (let i = 0; i < c.length; i++) {
+            const s = Math.max(-1, Math.min(1, c[i]));
+            pcm[off++] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
         }
+        const enc = new Mp3Encoder(1, sampleRate, 128);
+        const parts: Uint8Array[] = [];
+        const frame = 1152;
+        for (let i = 0; i < pcm.length; i += frame) {
+          const buf = enc.encodeBuffer(pcm.subarray(i, i + frame));
+          if (buf.length) parts.push(new Uint8Array(buf));
+        }
+        const end = enc.flush();
+        if (end.length) parts.push(new Uint8Array(end));
+        blob = new Blob(parts as unknown as BlobPart[], { type: "audio/mpeg" });
       }
-      const enc = new Mp3Encoder(1, sampleRate, 128);
-      const parts: Uint8Array[] = [];
-      const frame = 1152;
-      for (let i = 0; i < pcm.length; i += frame) {
-        const buf = enc.encodeBuffer(pcm.subarray(i, i + frame));
-        if (buf.length) parts.push(new Uint8Array(buf));
-      }
-      const end = enc.flush();
-      if (end.length) parts.push(new Uint8Array(end));
-      const blob = new Blob(parts as unknown as BlobPart[], { type: "audio/mpeg" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `soundbox-${new Date().toISOString().slice(0, 19)}.mp3`;
+      a.download = `soundbox-${new Date().toISOString().slice(0, 19)}.${fmt}`;
       a.click();
       URL.revokeObjectURL(url);
       setSaving(false);
@@ -746,6 +785,15 @@ export default function App() {
               <button className={input === 1 ? "seg-on" : ""} onClick={() => onInput(1)}>CH 2</button>
             </div>
           </div>
+          <div className="inputs">
+            <span className="rack-label">REC</span>
+            <div className="seg">
+              <button className={recFormat === "mp3" ? "seg-on" : ""}
+                onClick={() => setRecFormat("mp3")} disabled={recording || saving}>MP3</button>
+              <button className={recFormat === "wav" ? "seg-on" : ""}
+                onClick={() => setRecFormat("wav")} disabled={recording || saving}>WAV</button>
+            </div>
+          </div>
         </div>
 
         <Meter analyser={running ? engineRef.current!.inputAnalyser : null} />
@@ -772,7 +820,11 @@ export default function App() {
                 onClick={toggleRecord}
                 disabled={saving || loopState !== "idle"}
               >
-                {saving ? "saving mp3…" : recording ? "■ stop & save mp3" : "● record"}
+                {saving
+                  ? `saving ${recFormat}…`
+                  : recording
+                    ? `■ stop & save ${recFormat}`
+                    : "● record"}
               </button>
             </>
           )}
