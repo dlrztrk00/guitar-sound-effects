@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { PedalEngine } from "./audio/engine";
 import { Spectrum } from "./Spectrum";
+import { Spectrogram } from "./Spectrogram";
 import { Meter } from "./Meter";
 import { Knob } from "./Knob";
 import { Tuner } from "./Tuner";
@@ -86,6 +87,7 @@ export default function App() {
   const [presetName, setPresetName] = useState("");
   const [level, setLevel] = useState(0.9);
   const [tunerOn, setTunerOn] = useState(false);
+  const [scope, setScope] = useState<"bars" | "gram">("bars");
   const [input, setInput] = useState<0 | 1>(0);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
@@ -537,6 +539,8 @@ export default function App() {
                     analyser={engineRef.current!.tunerAnalyser}
                     sampleRate={engineRef.current!.ctx.sampleRate}
                   />
+                ) : scope === "gram" ? (
+                  <Spectrogram analyser={running ? engineRef.current!.analyser : null} />
                 ) : (
                   <Spectrum analyser={running ? engineRef.current!.analyser : null} />
                 )}
@@ -571,6 +575,14 @@ export default function App() {
                 onClick={toggleCab}
               >
                 CAB SIM
+              </button>
+              <button
+                className={`toggle ${scope === "gram" ? "on" : ""}`}
+                style={{ ["--accent" as string]: skin.accent }}
+                onClick={() => setScope((s) => (s === "gram" ? "bars" : "gram"))}
+                title="switch the screen between bar spectrum and scrolling spectrogram"
+              >
+                SPECTRO
               </button>
               <button
                 className={`toggle ${tunerOn ? "on" : ""}`}
