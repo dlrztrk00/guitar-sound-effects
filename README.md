@@ -25,25 +25,9 @@ and allow the mic when it asks.
   lets me pick the one the guitar is actually plugged into.
 
 
-## Running it
-
-```bash
-npm install
-npm run dev
-```
-
-Open the URL it prints, hit start, allow the mic.
-
 ## Built with
 
 Web Audio API, React, TypeScript, Vite.
-
-## Still want to add
-
-- Actual knobs you turn, instead of sliders
-- A delay/echo
-- Saving presets so I can keep a tone per artist
-- Working out the distortion curve in Python first, for my DSP course
 
 ---
 
