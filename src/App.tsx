@@ -113,8 +113,8 @@ export default function App() {
   });
   // the pedal chain order (front of board → amp) — drag to reorder
   const [order, setOrder] = useState<PedalId[]>(["comp", "drive", "chorus", "delay"]);
-  const dragId = useRef<PedalId | null>(null);
-  const [overId, setOverId] = useState<PedalId | null>(null);
+  const [dragging, setDragging] = useState<PedalId | null>(null);
+  const pedalRefs = useRef<Partial<Record<PedalId, HTMLDivElement | null>>>({});
 
   // built-in artists + a "Saved" section when the user has presets
   const savedArtist: Artist = {
@@ -343,16 +343,36 @@ export default function App() {
     });
   }
 
-  // drop the dragged pedal in front of the pedal it was dropped on
-  function dropPedal(targetId: PedalId) {
-    const from = dragId.current;
-    dragId.current = null;
-    setOverId(null);
-    if (!from || from === targetId) return;
-    const next = order.filter((x) => x !== from);
-    next.splice(next.indexOf(targetId), 0, from);
-    setOrder(next);
-    engineRef.current?.setPedalOrder(next);
+  // pointer-based live reorder (works with mouse and touch)
+  function beginDrag(e: React.PointerEvent, id: PedalId) {
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    setDragging(id);
+  }
+  function dragMove(e: React.PointerEvent, id: PedalId) {
+    if (dragging !== id) return;
+    const x = e.clientX;
+    const others = order.filter((z) => z !== id);
+    let insertAt = others.length;
+    for (let i = 0; i < others.length; i++) {
+      const el = pedalRefs.current[others[i]];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (x < r.left + r.width / 2) {
+        insertAt = i;
+        break;
+      }
+    }
+    const next = [...others];
+    next.splice(insertAt, 0, id);
+    if (next.some((z, i) => z !== order[i])) {
+      setOrder(next);
+      engineRef.current?.setPedalOrder(next);
+    }
+  }
+  function endDrag(e: React.PointerEvent, id: PedalId) {
+    if (dragging !== id) return;
+    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+    setDragging(null);
   }
 
   function randomTone() {
@@ -532,23 +552,24 @@ export default function App() {
     return (
       <div
         key={id}
+        ref={(el) => {
+          pedalRefs.current[id] = el;
+        }}
         className={`stompbox ${wide ? "wide" : ""} ${fx[id] ? "engaged" : ""} ${
-          overId === id && dragId.current !== id ? "dragover" : ""
+          dragging === id ? "grabbing" : ""
         }`}
         style={{ ["--pc" as string]: color }}
-        onDragOver={(e) => e.preventDefault()}
-        onDragEnter={() => setOverId(id)}
-        onDragLeave={() => setOverId((c) => (c === id ? null : c))}
-        onDrop={() => dropPedal(id)}
       >
-        <span
+        <div
           className="sb-grip"
-          draggable
-          onDragStart={() => (dragId.current = id)}
+          onPointerDown={(e) => beginDrag(e, id)}
+          onPointerMove={(e) => dragMove(e, id)}
+          onPointerUp={(e) => endDrag(e, id)}
+          onPointerCancel={(e) => endDrag(e, id)}
           title="drag to reorder the chain"
         >
-          ⠿
-        </span>
+          <span className="grip-dots">⠿⠿</span>
+        </div>
         {knobs}
         <div className="sb-name">{name}</div>
         <span className={`sb-led ${fx[id] ? "lit" : ""}`} />
