@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState, type ReactNode } from "react";
 import { PedalEngine } from "./audio/engine";
 import { Spectrum } from "./Spectrum";
 import { Spectrogram } from "./Spectrogram";
@@ -19,7 +19,15 @@ import {
   type Custom,
 } from "./presets";
 import { Mp3Encoder } from "@breezystack/lamejs";
-import type { DistType } from "./audio/engine";
+import type { DistType, PedalId } from "./audio/engine";
+
+// display config for each reorderable pedal
+const PEDAL_META: Record<PedalId, { name: string; color: string; wide?: boolean }> = {
+  comp: { name: "SQUISH", color: "#4a86b0" },
+  drive: { name: "OVERDRIVE", color: "#d98a3d" },
+  chorus: { name: "SHIMMER", color: "#3aa6a0" },
+  delay: { name: "ECHO", color: "#6a8f4f", wide: true },
+};
 import "./App.css";
 
 // Write captured mono PCM as a 16-bit WAV (lossless — great for importing to a DAW).
@@ -103,6 +111,10 @@ export default function App() {
     chorus: true,
     delay: true,
   });
+  // the pedal chain order (front of board → amp) — drag to reorder
+  const [order, setOrder] = useState<PedalId[]>(["comp", "drive", "chorus", "delay"]);
+  const dragId = useRef<PedalId | null>(null);
+  const [overId, setOverId] = useState<PedalId | null>(null);
 
   // built-in artists + a "Saved" section when the user has presets
   const savedArtist: Artist = {
@@ -148,6 +160,7 @@ export default function App() {
       engineRef.current.setDriveEnabled(fx.drive);
       engineRef.current.setChorusEnabled(fx.chorus);
       engineRef.current.setDelayEnabled(fx.delay);
+      engineRef.current.setPedalOrder(order);
       setRunning(true);
       setDevices(await engineRef.current.listInputs());
     } catch (e) {
@@ -316,7 +329,7 @@ export default function App() {
     engineRef.current?.setDistType(type);
   }
 
-  function toggleFx(k: "comp" | "drive" | "chorus" | "delay") {
+  function toggleFx(k: PedalId) {
     setFx((prev) => {
       const next = { ...prev, [k]: !prev[k] };
       const e = engineRef.current;
@@ -328,6 +341,18 @@ export default function App() {
       }
       return next;
     });
+  }
+
+  // drop the dragged pedal in front of the pedal it was dropped on
+  function dropPedal(targetId: PedalId) {
+    const from = dragId.current;
+    dragId.current = null;
+    setOverId(null);
+    if (!from || from === targetId) return;
+    const next = order.filter((x) => x !== from);
+    next.splice(next.indexOf(targetId), 0, from);
+    setOrder(next);
+    engineRef.current?.setPedalOrder(next);
   }
 
   function randomTone() {
@@ -448,6 +473,93 @@ export default function App() {
     }, 30);
   }
 
+  function renderPedal(id: PedalId) {
+    const { name, color, wide } = PEDAL_META[id];
+    let knobs: ReactNode;
+    if (id === "comp") {
+      knobs = (
+        <div className="sb-knobs">
+          <Knob label="COMP" value={tone.comp ?? 0} min={0} max={1} step={0.01}
+            display={`${Math.round((tone.comp ?? 0) * 100)}%`} accent={color}
+            onChange={(v) => setToneVal("comp", v)} />
+        </div>
+      );
+    } else if (id === "drive") {
+      knobs = (
+        <>
+          <div className="sb-knobs">
+            <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
+              display={`${Math.round(tone.drive * 100)}%`} accent={color}
+              onChange={(v) => setToneVal("drive", v)} />
+          </div>
+          <div className="seg dist-seg sb-seg">
+            {(["soft", "hard", "fuzz"] as const).map((d) => (
+              <button
+                key={d}
+                className={(tone.dist ?? "soft") === d ? "seg-on" : ""}
+                style={{ ["--accent" as string]: color }}
+                onClick={() => setDist(d)}
+              >
+                {d[0].toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    } else if (id === "chorus") {
+      knobs = (
+        <div className="sb-knobs">
+          <Knob label="DEPTH" value={tone.chorus ?? 0} min={0} max={1} step={0.01}
+            display={`${Math.round((tone.chorus ?? 0) * 100)}%`} accent={color}
+            onChange={(v) => setToneVal("chorus", v)} />
+        </div>
+      );
+    } else {
+      knobs = (
+        <div className="sb-knobs">
+          <Knob label="MIX" value={tone.delayMix} min={0} max={1} step={0.01}
+            display={`${Math.round(tone.delayMix * 100)}%`} accent={color}
+            onChange={(v) => setToneVal("delayMix", v)} />
+          <Knob label="TIME" value={tone.delayTime} min={0.02} max={1} step={0.01}
+            display={`${Math.round(tone.delayTime * 1000)}ms`} accent={color}
+            onChange={(v) => setToneVal("delayTime", v)} />
+          <Knob label="RPTS" value={tone.delayFb} min={0} max={0.9} step={0.01}
+            display={`${Math.round(tone.delayFb * 100)}%`} accent={color}
+            onChange={(v) => setToneVal("delayFb", v)} />
+        </div>
+      );
+    }
+    return (
+      <div
+        key={id}
+        className={`stompbox ${wide ? "wide" : ""} ${fx[id] ? "engaged" : ""} ${
+          overId === id && dragId.current !== id ? "dragover" : ""
+        }`}
+        style={{ ["--pc" as string]: color }}
+        onDragOver={(e) => e.preventDefault()}
+        onDragEnter={() => setOverId(id)}
+        onDragLeave={() => setOverId((c) => (c === id ? null : c))}
+        onDrop={() => dropPedal(id)}
+      >
+        <span
+          className="sb-grip"
+          draggable
+          onDragStart={() => (dragId.current = id)}
+          title="drag to reorder the chain"
+        >
+          ⠿
+        </span>
+        {knobs}
+        <div className="sb-name">{name}</div>
+        <span className={`sb-led ${fx[id] ? "lit" : ""}`} />
+        <button className="sb-switch" onClick={() => toggleFx(id)}
+          aria-pressed={fx[id]} title={`${name} on/off`}>
+          <span className="sb-cap" />
+        </button>
+      </div>
+    );
+  }
+
   const on = running && !bypassed;
   const faceName =
     artistId === "shared" && shared
@@ -471,7 +583,7 @@ export default function App() {
         <p className="sub">a guitar pedal, coded — Web Audio</p>
       </header>
 
-      {/* artist selector — a single dropdown */}
+      {/* artist + song selectors — dropdowns */}
       <div className="picker">
         <label className="pick" style={{ ["--accent" as string]: skin.accent }}>
           <span className="pick-label">ARTIST</span>
@@ -487,23 +599,23 @@ export default function App() {
             ))}
           </select>
         </label>
-      </div>
-
-      {/* song selector (or saved presets) */}
-      {artist.songs.length > 1 && (
-        <div className="songs">
-          {artist.songs.map((s) => (
-            <button
-              key={s.id}
-              className={`song ${s.id === songId ? "sel" : ""}`}
-              style={{ ["--accent" as string]: skin.accent }}
-              onClick={() => selectSong(s.id)}
+        {artist.songs.length > 1 && (
+          <label className="pick" style={{ ["--accent" as string]: skin.accent }}>
+            <span className="pick-label">SONG</span>
+            <select
+              className="artist-select"
+              value={songId}
+              onChange={(e) => selectSong(e.target.value)}
             >
-              {s.name}
-            </button>
-          ))}
-        </div>
-      )}
+              {artist.songs.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {/* the rig: amp head sitting on a speaker cabinet, then a pedalboard */}
       <div
@@ -618,101 +730,12 @@ export default function App() {
         <div className="board">
           <div className="board-label">PEDALBOARD</div>
           <div className="pedals">
-            {/* COMP */}
-            <div
-              className={`stompbox ${fx.comp ? "engaged" : ""}`}
-              style={{ ["--pc" as string]: "#4a86b0" }}
-            >
-              <div className="sb-knobs">
-                <Knob label="COMP" value={tone.comp ?? 0} min={0} max={1} step={0.01}
-                  display={`${Math.round((tone.comp ?? 0) * 100)}%`} accent="#4a86b0"
-                  onChange={(v) => setToneVal("comp", v)} />
-              </div>
-              <div className="sb-name">SQUISH</div>
-              <span className={`sb-led ${fx.comp ? "lit" : ""}`} />
-              <button className="sb-switch" onClick={() => toggleFx("comp")}
-                aria-pressed={fx.comp} title="compressor on/off">
-                <span className="sb-cap" />
-              </button>
-            </div>
-
-            <span className="patch" />
-
-            {/* DRIVE */}
-            <div
-              className={`stompbox tall ${fx.drive ? "engaged" : ""}`}
-              style={{ ["--pc" as string]: "#d98a3d" }}
-            >
-              <div className="sb-knobs">
-                <Knob label="DRIVE" value={tone.drive} min={0} max={1} step={0.01}
-                  display={`${Math.round(tone.drive * 100)}%`} accent="#d98a3d"
-                  onChange={(v) => setToneVal("drive", v)} />
-              </div>
-              <div className="seg dist-seg sb-seg">
-                {(["soft", "hard", "fuzz"] as const).map((d) => (
-                  <button
-                    key={d}
-                    className={(tone.dist ?? "soft") === d ? "seg-on" : ""}
-                    style={{ ["--accent" as string]: "#d98a3d" }}
-                    onClick={() => setDist(d)}
-                  >
-                    {d[0].toUpperCase()}
-                  </button>
-                ))}
-              </div>
-              <div className="sb-name">OVERDRIVE</div>
-              <span className={`sb-led ${fx.drive ? "lit" : ""}`} />
-              <button className="sb-switch" onClick={() => toggleFx("drive")}
-                aria-pressed={fx.drive} title="drive on/off">
-                <span className="sb-cap" />
-              </button>
-            </div>
-
-            <span className="patch" />
-
-            {/* CHORUS */}
-            <div
-              className={`stompbox ${fx.chorus ? "engaged" : ""}`}
-              style={{ ["--pc" as string]: "#3aa6a0" }}
-            >
-              <div className="sb-knobs">
-                <Knob label="DEPTH" value={tone.chorus ?? 0} min={0} max={1} step={0.01}
-                  display={`${Math.round((tone.chorus ?? 0) * 100)}%`} accent="#3aa6a0"
-                  onChange={(v) => setToneVal("chorus", v)} />
-              </div>
-              <div className="sb-name">SHIMMER</div>
-              <span className={`sb-led ${fx.chorus ? "lit" : ""}`} />
-              <button className="sb-switch" onClick={() => toggleFx("chorus")}
-                aria-pressed={fx.chorus} title="chorus on/off">
-                <span className="sb-cap" />
-              </button>
-            </div>
-
-            <span className="patch" />
-
-            {/* DELAY (a bigger box — three knobs) */}
-            <div
-              className={`stompbox wide ${fx.delay ? "engaged" : ""}`}
-              style={{ ["--pc" as string]: "#6a8f4f" }}
-            >
-              <div className="sb-knobs">
-                <Knob label="MIX" value={tone.delayMix} min={0} max={1} step={0.01}
-                  display={`${Math.round(tone.delayMix * 100)}%`} accent="#6a8f4f"
-                  onChange={(v) => setToneVal("delayMix", v)} />
-                <Knob label="TIME" value={tone.delayTime} min={0.02} max={1} step={0.01}
-                  display={`${Math.round(tone.delayTime * 1000)}ms`} accent="#6a8f4f"
-                  onChange={(v) => setToneVal("delayTime", v)} />
-                <Knob label="RPTS" value={tone.delayFb} min={0} max={0.9} step={0.01}
-                  display={`${Math.round(tone.delayFb * 100)}%`} accent="#6a8f4f"
-                  onChange={(v) => setToneVal("delayFb", v)} />
-              </div>
-              <div className="sb-name">ECHO</div>
-              <span className={`sb-led ${fx.delay ? "lit" : ""}`} />
-              <button className="sb-switch" onClick={() => toggleFx("delay")}
-                aria-pressed={fx.delay} title="delay on/off">
-                <span className="sb-cap" />
-              </button>
-            </div>
+            {order.map((id, i) => (
+              <Fragment key={id}>
+                {renderPedal(id)}
+                {i < order.length - 1 && <span className="patch" />}
+              </Fragment>
+            ))}
           </div>
 
           <button className={`stomp ${on ? "lit" : ""}`} onClick={toggleBypass} disabled={!running}>

@@ -1,19 +1,24 @@
 // The whole pedal, in Web Audio nodes.
 //
 // signal path:
-//   guitar (interface) → splitter (pick CH) → inputGain ─┬─ dry ─────────────┐
-//                                                        │                   │
-//                                    inputAnalyser (tap) ┘                   │
-//                                                                            │
-//   inputGain → shaper (distortion) → low → mid → high ─┬─────────→ wetGain ─┤
-//                                                        └→ delay ↺ → wetGain │
-//                                                                            │
-//   wet + dry → master → limiter → analyser → speakers                       │
-//                                └→ recorder tap (download)  ─────────────────┘
+//   guitar (interface) → splitter → inputGain ─┬─ dryGain (clean bypass) ──────┐
+//                                              │                               │
+//                              taps: input/tuner analysers                     │
+//                                              │                               │
+//   inputGain → gateGain → [ pedal chain, reorderable ] → EQ(low/mid/high)     │
+//                            comp · drive · chorus · delay      → cab → wetGain │
+//                                                                              │
+//   wet + dry → master → limiter → analyser → speakers                        │
+//                     └→ reverb send (off wet)  ────────────────────────────────┘
 //
-// bypass = wetGain off / dryGain on.
+// The four pedals are discrete blocks (each with an `in` and `out` node) wired
+// in series in `pedalOrder`; reordering just rewires that series.
 
 export type EqBand = "low" | "mid" | "high";
+export type DistType = "soft" | "hard" | "fuzz";
+export type PedalId = "comp" | "drive" | "chorus" | "delay";
+
+type Block = { in: AudioNode; out: AudioNode };
 
 // Build a simple reverb impulse: decaying noise. Stereo for a bit of width.
 function makeReverbIR(
@@ -32,8 +37,6 @@ function makeReverbIR(
   }
   return buf;
 }
-
-export type DistType = "soft" | "hard" | "fuzz";
 
 // Distortion curve. soft = round tanh clip, hard = square-ish clip,
 // fuzz = asymmetric high-gain (adds buzzy even harmonics).
@@ -85,35 +88,38 @@ export class PedalEngine {
   private gateThreshold = 0; // linear amplitude; 0 = open (off)
   private gateBuf = new Float32Array(1024);
 
-  // input compressor (musical — separate from the output limiter)
+  // ── pedal block: COMP ──
   private comp: DynamicsCompressorNode;
   private compMakeup: GainNode;
 
+  // ── pedal block: DRIVE ──
   private shaper: WaveShaperNode;
-  private eq: Record<EqBand, BiquadFilterNode>;
 
-  // delay send
+  // ── pedal block: CHORUS (in → dry+wet → out) ──
+  private chorusIn: GainNode;
+  private chorusOut: GainNode;
+  private chorusDelay: DelayNode;
+  private chorusLFO: OscillatorNode;
+  private chorusDepth: GainNode;
+  private chorusWet: GainNode;
+
+  // ── pedal block: DELAY (in → dry+wet → out) ──
+  private delayIn: GainNode;
+  private delayOut: GainNode;
   private delay: DelayNode;
   private delayFeedback: GainNode;
-  private delayMix: GainNode;
+  private delayWet: GainNode;
 
-  // reverb send
+  // amp side
+  private eq: Record<EqBand, BiquadFilterNode>;
   private reverb: ConvolverNode;
   private reverbGain: GainNode;
-
-  // cabinet / speaker sim (switchable)
   private cabHP: BiquadFilterNode;
   private cabLP: BiquadFilterNode;
   private cabDip: BiquadFilterNode;
   private cabWet: GainNode;
   private cabDry: GainNode;
   private cabOut: GainNode;
-
-  // chorus (LFO-modulated short delay)
-  private chorusDelay: DelayNode;
-  private chorusLFO: OscillatorNode;
-  private chorusDepth: GainNode;
-  private chorusMix: GainNode;
 
   private wetGain: GainNode;
   private dryGain: GainNode;
@@ -136,7 +142,7 @@ export class PedalEngine {
   private distType: DistType = "soft";
   bypassed = false;
 
-  // per-pedal on/off (each stompbox's footswitch)
+  // per-pedal on/off + stored amounts
   private compVal = 0;
   private compOn = true;
   private driveOn = true;
@@ -144,6 +150,10 @@ export class PedalEngine {
   private chorusOn = true;
   private delayVal = 0;
   private delayOn = true;
+
+  // the order the four pedals are wired in (front of the board → amp)
+  private pedalOrder: PedalId[] = ["comp", "drive", "chorus", "delay"];
+  private blocks!: Record<PedalId, Block>;
 
   constructor() {
     this.ctx = new AudioContext({ latencyHint: "interactive" });
@@ -161,12 +171,65 @@ export class PedalEngine {
     this.tunerAnalyser.fftSize = 2048;
     this.inputGain.connect(this.tunerAnalyser);
 
-    // --- distortion ---
+    // ── COMP block ──
+    this.comp = this.ctx.createDynamicsCompressor();
+    this.comp.threshold.value = 0;
+    this.comp.ratio.value = 1;
+    this.comp.knee.value = 6;
+    this.comp.attack.value = 0.003;
+    this.comp.release.value = 0.25;
+    this.compMakeup = this.ctx.createGain();
+    this.compMakeup.gain.value = 1;
+    this.comp.connect(this.compMakeup);
+
+    // ── DRIVE block ──
     this.shaper = this.ctx.createWaveShaper();
     this.shaper.curve = makeDistortionCurve(this.drive, this.distType);
     this.shaper.oversample = "4x";
 
-    // --- 3-band EQ ---
+    // ── CHORUS block: in → out (dry) and in → modDelay → wet → out ──
+    this.chorusIn = this.ctx.createGain();
+    this.chorusOut = this.ctx.createGain();
+    this.chorusDelay = this.ctx.createDelay(0.05);
+    this.chorusDelay.delayTime.value = 0.025;
+    this.chorusLFO = this.ctx.createOscillator();
+    this.chorusLFO.frequency.value = 0.8;
+    this.chorusDepth = this.ctx.createGain();
+    this.chorusDepth.gain.value = 0.003;
+    this.chorusWet = this.ctx.createGain();
+    this.chorusWet.gain.value = 0; // off by default
+    this.chorusLFO.connect(this.chorusDepth);
+    this.chorusDepth.connect(this.chorusDelay.delayTime);
+    this.chorusLFO.start();
+    this.chorusIn.connect(this.chorusOut); // dry
+    this.chorusIn.connect(this.chorusDelay);
+    this.chorusDelay.connect(this.chorusWet);
+    this.chorusWet.connect(this.chorusOut);
+
+    // ── DELAY block: in → out (dry) and in → delay(↺) → wet → out ──
+    this.delayIn = this.ctx.createGain();
+    this.delayOut = this.ctx.createGain();
+    this.delay = this.ctx.createDelay(1.0);
+    this.delay.delayTime.value = 0.3;
+    this.delayFeedback = this.ctx.createGain();
+    this.delayFeedback.gain.value = 0.35;
+    this.delayWet = this.ctx.createGain();
+    this.delayWet.gain.value = 0; // off by default
+    this.delayIn.connect(this.delayOut); // dry
+    this.delayIn.connect(this.delay);
+    this.delay.connect(this.delayFeedback);
+    this.delayFeedback.connect(this.delay);
+    this.delay.connect(this.delayWet);
+    this.delayWet.connect(this.delayOut);
+
+    this.blocks = {
+      comp: { in: this.comp, out: this.compMakeup },
+      drive: { in: this.shaper, out: this.shaper },
+      chorus: { in: this.chorusIn, out: this.chorusOut },
+      delay: { in: this.delayIn, out: this.delayOut },
+    };
+
+    // ── amp: 3-band EQ ──
     const low = this.ctx.createBiquadFilter();
     low.type = "lowshelf";
     low.frequency.value = 200;
@@ -179,22 +242,13 @@ export class PedalEngine {
     high.frequency.value = 3500;
     this.eq = { low, mid, high };
 
-    // --- delay send (echo) ---
-    this.delay = this.ctx.createDelay(1.0);
-    this.delay.delayTime.value = 0.3;
-    this.delayFeedback = this.ctx.createGain();
-    this.delayFeedback.gain.value = 0.35;
-    this.delayMix = this.ctx.createGain();
-    this.delayMix.gain.value = 0; // off by default
-
-    // --- reverb send ---
+    // ── amp: reverb send ──
     this.reverb = this.ctx.createConvolver();
     this.reverb.buffer = makeReverbIR(this.ctx, 2.4, 3.0);
     this.reverbGain = this.ctx.createGain();
-    this.reverbGain.gain.value = 0; // off by default
+    this.reverbGain.gain.value = 0;
 
-    // --- cabinet / speaker sim (switchable) ---
-    // rolls off fizzy highs and boomy lows like a real guitar speaker
+    // ── amp: cabinet / speaker sim (switchable) ──
     this.cabHP = this.ctx.createBiquadFilter();
     this.cabHP.type = "highpass";
     this.cabHP.frequency.value = 85;
@@ -205,33 +259,19 @@ export class PedalEngine {
     this.cabDip.type = "peaking";
     this.cabDip.frequency.value = 2800;
     this.cabDip.Q.value = 1.5;
-    this.cabDip.gain.value = -4; // tame harsh presence
+    this.cabDip.gain.value = -4;
     this.cabWet = this.ctx.createGain();
-    this.cabWet.gain.value = 0; // cab off by default
+    this.cabWet.gain.value = 0;
     this.cabDry = this.ctx.createGain();
     this.cabDry.gain.value = 1;
     this.cabOut = this.ctx.createGain();
 
-    // --- chorus: a short delay whose time wobbles under an LFO ---
-    this.chorusDelay = this.ctx.createDelay(0.05);
-    this.chorusDelay.delayTime.value = 0.025;
-    this.chorusLFO = this.ctx.createOscillator();
-    this.chorusLFO.frequency.value = 0.8;
-    this.chorusDepth = this.ctx.createGain();
-    this.chorusDepth.gain.value = 0.003;
-    this.chorusMix = this.ctx.createGain();
-    this.chorusMix.gain.value = 0; // off by default
-    this.chorusLFO.connect(this.chorusDepth);
-    this.chorusDepth.connect(this.chorusDelay.delayTime);
-    this.chorusLFO.start();
-
-    // --- mix / bypass / output ---
+    // ── mix / bypass / output ──
     this.wetGain = this.ctx.createGain();
     this.dryGain = this.ctx.createGain();
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.9;
 
-    // a limiter on the output so stacked drive + EQ can't nasty-clip
     this.limiter = this.ctx.createDynamicsCompressor();
     this.limiter.threshold.value = -6;
     this.limiter.knee.value = 0;
@@ -239,12 +279,10 @@ export class PedalEngine {
     this.limiter.attack.value = 0.003;
     this.limiter.release.value = 0.25;
 
-    // output spectrum tap
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 2048;
     this.analyser.smoothingTimeConstant = 0.8;
 
-    // recording tap: pull raw PCM off the output so we can encode MP3
     this.recNode = this.ctx.createScriptProcessor(4096, 1, 1);
     this.recSilent = this.ctx.createGain();
     this.recSilent.gain.value = 0;
@@ -254,7 +292,6 @@ export class PedalEngine {
     };
 
     // noise gate: a native GainNode opened/closed by watching the input level
-    // (no ScriptProcessor in the signal path, so it adds no latency)
     this.gateGain = this.ctx.createGain();
     this.gateGain.gain.value = 1;
     const gateTick = () => {
@@ -272,33 +309,17 @@ export class PedalEngine {
         if (a > peak) peak = a;
       }
       const open = peak > thr;
-      // open fast, close a little slower to avoid chatter
       this.gateGain.gain.setTargetAtTime(open ? 1 : 0, now, open ? 0.005 : 0.06);
     };
     gateTick();
 
-    // input compressor (musical) — evens out picking dynamics, adds sustain
-    this.comp = this.ctx.createDynamicsCompressor();
-    this.comp.threshold.value = 0; // starts transparent (COMP at 0)
-    this.comp.ratio.value = 1;
-    this.comp.knee.value = 6;
-    this.comp.attack.value = 0.003;
-    this.comp.release.value = 0.25;
-    this.compMakeup = this.ctx.createGain();
-    this.compMakeup.gain.value = 1;
-
-    // permanent wiring (input source gets attached later, in openStream)
+    // permanent wiring (input source attaches later, in openStream)
     this.inputGain.connect(this.gateGain);
-    this.gateGain.connect(this.comp);
-    this.comp.connect(this.compMakeup);
-    this.compMakeup.connect(this.shaper);
-    this.compMakeup.connect(this.dryGain);
+    this.inputGain.connect(this.dryGain); // clean bypass path
 
-    this.shaper.connect(low);
+    // amp: EQ → cab → wet
     low.connect(mid);
     mid.connect(high);
-
-    // cabinet block: high → [wet: HP→LP→dip] / [dry] → cabOut
     high.connect(this.cabHP);
     this.cabHP.connect(this.cabLP);
     this.cabLP.connect(this.cabDip);
@@ -307,18 +328,6 @@ export class PedalEngine {
     high.connect(this.cabDry);
     this.cabDry.connect(this.cabOut);
     this.cabOut.connect(this.wetGain);
-
-    // chorus send off the cab output
-    this.cabOut.connect(this.chorusDelay);
-    this.chorusDelay.connect(this.chorusMix);
-    this.chorusMix.connect(this.wetGain);
-
-    // delay send off the cab output, with a feedback loop
-    this.cabOut.connect(this.delay);
-    this.delay.connect(this.delayFeedback);
-    this.delayFeedback.connect(this.delay);
-    this.delay.connect(this.delayMix);
-    this.delayMix.connect(this.wetGain);
 
     this.wetGain.connect(this.master);
     this.dryGain.connect(this.master);
@@ -331,20 +340,59 @@ export class PedalEngine {
     this.master.connect(this.limiter);
     this.limiter.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
-    // the recorder tap is only wired up while recording (see startCapture),
-    // so no ScriptProcessor sits in the graph during normal playing
 
-    // looper: recorded phrases play back through here into the mix
+    // looper
     this.loopGain = this.ctx.createGain();
     this.loopGain.gain.value = 0.85;
     this.loopGain.connect(this.master);
 
+    // wire the pedal chain (gate → pedals → EQ) in the default order
+    this.rewireChain();
+
     this.setBypass(false);
+  }
+
+  /** Rewire the four pedal blocks in series according to `pedalOrder`. */
+  private rewireChain(): void {
+    // tear down the chain's external links
+    this.gateGain.disconnect();
+    for (const id of ["comp", "drive", "chorus", "delay"] as PedalId[]) {
+      this.blocks[id].out.disconnect();
+    }
+    // reconnect: gate → b0 → b1 → … → EQ.low
+    let prev: AudioNode = this.gateGain;
+    for (const id of this.pedalOrder) {
+      const b = this.blocks[id];
+      prev.connect(b.in);
+      prev = b.out;
+    }
+    prev.connect(this.eq.low);
+  }
+
+  /** Set the pedal chain order, e.g. ["drive","comp","delay","chorus"]. */
+  setPedalOrder(order: PedalId[]): void {
+    // keep only known ids, and make sure all four are present
+    const seen = new Set<PedalId>();
+    const next: PedalId[] = [];
+    for (const id of order) {
+      if (this.blocks[id] && !seen.has(id)) {
+        seen.add(id);
+        next.push(id);
+      }
+    }
+    for (const id of ["comp", "drive", "chorus", "delay"] as PedalId[]) {
+      if (!seen.has(id)) next.push(id);
+    }
+    this.pedalOrder = next;
+    this.rewireChain();
+  }
+
+  getPedalOrder(): PedalId[] {
+    return [...this.pedalOrder];
   }
 
   /** (Re)open the mic/interface stream and wire it into the graph. */
   private async openStream(): Promise<void> {
-    // tear down any previous input
     this.stream?.getTracks().forEach((t) => t.stop());
     this.source?.disconnect();
     this.splitter?.disconnect();
@@ -380,19 +428,16 @@ export class PedalEngine {
     await this.ctx.suspend();
   }
 
-  /** List the available audio input devices (labels appear after permission). */
   async listInputs(): Promise<MediaDeviceInfo[]> {
     const all = await navigator.mediaDevices.enumerateDevices();
     return all.filter((d) => d.kind === "audioinput");
   }
 
-  /** Switch to a specific input device and reconnect live. */
   async setDevice(id: string): Promise<void> {
     this.deviceId = id || undefined;
     if (this.source) await this.openStream();
   }
 
-  /** Pick which interface input to listen to: 0 = Input 1, 1 = Input 2. */
   setInput(ch: 0 | 1): void {
     this.inputChannel = ch;
     if (this.splitter) {
@@ -405,7 +450,6 @@ export class PedalEngine {
     return this.inputChannel;
   }
 
-  /** Distortion character: soft (tanh), hard (clip), or fuzz (asymmetric). */
   setDistType(type: DistType): void {
     this.distType = type;
     this.updateShaper();
@@ -428,7 +472,6 @@ export class PedalEngine {
     this.updateShaper();
   }
 
-  /** EQ gain in dB, -18..+18. */
   setEq(band: EqBand, db: number): void {
     this.eq[band].gain.value = db;
   }
@@ -436,18 +479,15 @@ export class PedalEngine {
   /** Delay wet amount 0..1. */
   setDelayMix(v: number): void {
     this.delayVal = Math.max(0, Math.min(1, v));
-    this.delayMix.gain.value = this.delayOn ? this.delayVal : 0;
+    this.delayWet.gain.value = this.delayOn ? this.delayVal : 0;
   }
-  /** DELAY pedal footswitch. */
   setDelayEnabled(on: boolean): void {
     this.delayOn = on;
-    this.delayMix.gain.value = on ? this.delayVal : 0;
+    this.delayWet.gain.value = on ? this.delayVal : 0;
   }
-  /** Delay time in seconds, 0..1. */
   setDelayTime(s: number): void {
     this.delay.delayTime.value = Math.max(0, Math.min(1, s));
   }
-  /** Delay feedback 0..0.9 (higher = more repeats). */
   setDelayFeedback(v: number): void {
     this.delayFeedback.gain.value = Math.max(0, Math.min(0.9, v));
   }
@@ -459,31 +499,27 @@ export class PedalEngine {
     this.dryGain.gain.setTargetAtTime(on ? 1 : 0, t, 0.01);
   }
 
-  /** Output volume, 0..1.4 (the limiter still catches anything hot). */
   setLevel(v: number): void {
     this.master.gain.value = Math.max(0, Math.min(1.4, v));
   }
 
-  /** Reverb wet amount, 0..1. */
   setReverbMix(v: number): void {
     this.reverbGain.gain.value = Math.max(0, Math.min(1, v));
   }
 
-  /** Noise gate amount, 0..1 (0 = off). Higher closes on louder residual noise. */
   setGate(v: number): void {
     const x = Math.max(0, Math.min(1, v));
-    this.gateThreshold = x * x * 0.12; // squared for finer control down low
+    this.gateThreshold = x * x * 0.12;
   }
 
   /** Chorus wet amount, 0..1. */
   setChorus(v: number): void {
     this.chorusVal = Math.max(0, Math.min(1, v));
-    this.chorusMix.gain.value = this.chorusOn ? this.chorusVal : 0;
+    this.chorusWet.gain.value = this.chorusOn ? this.chorusVal : 0;
   }
-  /** CHORUS pedal footswitch. */
   setChorusEnabled(on: boolean): void {
     this.chorusOn = on;
-    this.chorusMix.gain.value = on ? this.chorusVal : 0;
+    this.chorusWet.gain.value = on ? this.chorusVal : 0;
   }
 
   /** Compressor amount, 0..1 (0 = transparent). */
@@ -491,7 +527,6 @@ export class PedalEngine {
     this.compVal = Math.max(0, Math.min(1, v));
     this.applyComp();
   }
-  /** COMP pedal footswitch. */
   setCompEnabled(on: boolean): void {
     this.compOn = on;
     this.applyComp();
@@ -504,27 +539,22 @@ export class PedalEngine {
     this.compMakeup.gain.setTargetAtTime(1 + 1.5 * x, t, 0.01);
   }
 
-  /** Cabinet / speaker sim on or off. */
   setCab(on: boolean): void {
     const t = this.ctx.currentTime;
     this.cabWet.gain.setTargetAtTime(on ? 1 : 0, t, 0.01);
     this.cabDry.gain.setTargetAtTime(on ? 0 : 1, t, 0.01);
   }
 
-  /** Start collecting raw PCM from the output (for MP3 encoding). */
   startCapture(): void {
     this.recChunks = [];
     this.capturing = true;
-    // wire the recorder into the graph only for the duration of the recording
     this.limiter.connect(this.recNode);
     this.recNode.connect(this.recSilent);
     this.recSilent.connect(this.ctx.destination);
   }
 
-  /** Stop and return the captured PCM plus its sample rate. */
   stopCapture(): { chunks: Float32Array[]; sampleRate: number } {
     this.capturing = false;
-    // pull the recorder back out of the graph
     try {
       this.limiter.disconnect(this.recNode);
       this.recNode.disconnect();
@@ -537,12 +567,10 @@ export class PedalEngine {
     return { chunks, sampleRate: this.ctx.sampleRate };
   }
 
-  /** Start capturing a loop phrase (processed output). */
   startLoop(): void {
     this.startCapture();
   }
 
-  /** Stop capturing and start looping what was captured. */
   finishLoop(): void {
     const { chunks, sampleRate } = this.stopCapture();
     this.stopLoop();
@@ -563,7 +591,6 @@ export class PedalEngine {
     this.loopSource = src;
   }
 
-  /** Stop and clear the loop. */
   stopLoop(): void {
     try {
       this.loopSource?.stop();

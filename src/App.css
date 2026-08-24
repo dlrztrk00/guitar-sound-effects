@@ -64,8 +64,11 @@ header .sub {
   margin: 0.25rem 0 0;
 }
 
-/* ── artist selector (single dropdown) ───────────────────────── */
+/* ── artist + song selectors (dropdowns) ─────────────────────── */
 .picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.2rem;
   margin: 1.4rem 0 1.1rem;
 }
 .pick {
@@ -661,11 +664,32 @@ header .sub {
   filter: saturate(0.5) brightness(0.82);
 }
 
+/* drag handle to reorder the chain */
+.sb-grip {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: grab;
+  font-size: 0.7rem;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: rgba(0, 0, 0, 0.45);
+  user-select: none;
+}
+.sb-grip:active {
+  cursor: grabbing;
+}
+.stompbox.dragover {
+  outline: 2px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: 2px;
+}
+
 .sb-knobs {
   display: flex;
   justify-content: center;
   gap: 0.3rem;
-  margin-top: 0.15rem;
+  margin-top: 0.5rem;
 }
 .sb-knobs .knob {
   width: 46px;
